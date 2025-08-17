@@ -27,12 +27,8 @@ plugin_t plugins[] = {
 };
 #undef X
 
-int plugin_count() {
-  return 2;
-}
-
 int get_plugin_count() {
-  return plugin_count();
+  return 1;
 }
 
 const clap_plugin_descriptor_t* get_plugindesc_by_index(int index) {
