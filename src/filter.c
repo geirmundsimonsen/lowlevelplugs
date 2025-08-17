@@ -1,6 +1,7 @@
 #include "filter.h"
 
 #include <math.h>
+#include "log.h"
 
 #define TWOPI 3.14159265358979323846 * 2
 #define MYFLT2LONG(x) ((int)(x))
@@ -34,7 +35,7 @@ void k35_lpf_perf(K35_LPF* p) {
   double alpha = p->alpha;
   double lpf2_beta = p->lpf2_beta;
   double hpf1_beta = p->hpf1_beta;
-
+  
   //uint32_t offset = p->h.insdshead->ksmps_offset;
   //uint32_t early = p->h.insdshead->ksmps_no_end;
   //uint32_t n, nsmps = CS_KSMPS;
@@ -92,7 +93,6 @@ void k35_lpf_perf(K35_LPF* p) {
       hpf1_beta = -1.0 / (1.0 + g);
       alpha = 1.0 / (1.0 - (K * G) + (K * G * G));
     }
-
 
     last_cut = cutoff;
     last_q = q;

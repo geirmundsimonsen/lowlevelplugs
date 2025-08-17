@@ -12,6 +12,15 @@ void write_log(const char* msg) {
   }
 }
 
+void write_log_double(double d) {
+  FILE* f = fopen("/p1/code/c/lowlevelplugs/plugin.log", "a");
+  if (f) {
+    time_t t = time(nullptr);
+    fprintf(f, "[%ld] %f\n", t, d);
+    fclose(f);
+  }
+}
+
 void clear_log() {
   FILE* f = fopen("/p1/code/c/lowlevelplugs/plugin.log", "w");
   if (f) {

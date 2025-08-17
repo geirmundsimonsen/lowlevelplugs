@@ -5,6 +5,7 @@
 #include "log.h"
 #include "util.h"
 #include "osc.h"
+#include "filter.h"
 #include "tables.h"
 
 #define PLG P002
@@ -13,17 +14,47 @@
 
 typedef struct {
   int pitch;
-  double freq;
-  tabplay_t f_env;
   tabplay_t rel_env;
   osc_t osc;
+  tabplay_t f_env;
+  K35_LPF k35;
   bool active;
   bool release;
+
+  double k35_in[1];
+  double k35_cutoff[1];
+  double k35_q[1];
+  double k35_nonlinear[1];
+  double k35_saturation[1];
+  double k35_skip[1];
+  double k35_out[1];
 } Voice;
 
 static double voice_tick(Voice* self) {
-  self->osc.freq = self->freq + tabplay_tick(&self->f_env) * self->freq * 5;
   double out = osc_tick(&self->osc);
+  if (out > 0.40) {
+    out = 0.40;
+  } else if (out < -0.40) {
+    out = -0.40;
+  }
+
+  self->k35.in = self->k35_in;
+  self->k35.cutoff = self->k35_cutoff;
+  self->k35.q = self->k35_q;
+  self->k35.nonlinear = self->k35_nonlinear;
+  self->k35.saturation = self->k35_saturation;
+  //self->k35.skip = self->k35_skip;
+  self->k35.out = self->k35_out;
+
+  self->k35_in[0] = out;
+  self->k35_q[0] = 7;
+  self->k35_cutoff[0] = 200 + tabplay_tick(&self->f_env) * 800;
+  self->k35_nonlinear[0] = 0;
+  self->k35_saturation[0] = 1.0;
+  //self->k35_skip[0] = 0;
+
+  k35_lpf_perf(&self->k35);
+  out = self->k35_out[0];
   if (self->release) {
     auto rel = tabplay_tick(&self->rel_env);
     out *= rel;
@@ -33,8 +64,24 @@ static double voice_tick(Voice* self) {
 }
 
 static Voice voice(int pitch) {
-  Voice p = { pitch, midipitch2freq(pitch), { 0.0, 0.2, et_fall_exp_3 }, { 0.0, 0.05, et_fall_lin }, { 0.0, 0.0, wt_sin }, true, false };
-  return p;
+  Voice v = {0};
+  /*v.k35.in = v.k35_in;
+  v.k35.cutoff = v.k35_cutoff;
+  v.k35.q = v.k35_q;
+  v.k35.nonlinear = v.k35_nonlinear;
+  v.k35.saturation = v.k35_saturation;
+  v.k35.out = v.k35_out;*/
+  v.k35.skip = v.k35_skip;
+  k35_lpf_init(&v.k35);
+  v.pitch = pitch;
+  v.osc.freq = midipitch2freq(pitch);
+  v.osc.wt = wt_sin;
+  v.f_env.s = 2;
+  v.f_env.wt = et_fall_exp_2;
+  v.rel_env.s = 0.05;
+  v.rel_env.wt = et_fall_lin;
+  v.active = true;
+  return v;
 }
 
 typedef struct {

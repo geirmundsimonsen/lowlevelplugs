@@ -16,7 +16,7 @@ desc() {
 }
 
 CXX=gcc
-CXXFLAGS="-std=c23 -O1 -fPIC -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -Wpedantic"
+CXXFLAGS="-std=c23 -O2 -fPIC -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -Wpedantic"
 
 mkdir -p tables/build
 desc "comp tables"; timer $CXX tables/main.c $CXXFLAGS -Wl,--no-undefined -o tables/build/tables -lm
