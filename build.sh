@@ -1,36 +1,37 @@
 set -euo pipefail
 
-with_timer() {
-  echo -n compiling $3 "... "
+timer() {
+  #echo -n compiling $0 "... "
   start=$(date +%s%N)
   $@
   end=$(date +%s%N)
   elapsed_ns=$((end - start))
   elapsed_ms=$((elapsed_ns / 1000000))
-  echo "${elapsed_ms} ms"
+  echo ": ${elapsed_ms} ms"
 }
 
 CXX=gcc
-CXXFLAGS="-fPIC -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wpedantic -O3"
+CXXFLAGS="-std=c23 -fPIC -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -Wpedantic -O3"
+
+mkdir -p tables/build
+echo -n "comp tables"; timer $CXX tables/main.c $CXXFLAGS -Wl,--no-undefined -o tables/build/tables -lm
+echo -n "run tables"; timer tables/build/tables
+
 mkdir -p build
-
-#$CXX tables/main.cpp $CXXFLAGS -Wl,--no-undefined -o tables/build/tables
-#tables/build/tables
-
-with_timer $CXX -c src/log.c -o build/log.o $CXXFLAGS
-#with_timer $CXX -c src/tables.cpp -o build/tables.o $CXXFLAGS
-#with_timer $CXX -c src/osc.cpp -o build/osc.o $CXXFLAGS
-#with_timer $CXX -c src/plugindescs.cpp -o build/plugindescs.o $CXXFLAGS
-#with_timer $CXX -c src/factory.cpp -o build/factory.o $CXXFLAGS
-#with_timer $CXX -c src/util.cpp -o build/util.o $CXXFLAGS
-#with_timer $CXX -c src/p000.cpp -o build/p000.o $CXXFLAGS
-#with_timer $CXX -c src/p001.cpp -o build/p001.o $CXXFLAGS
-with_timer $CXX -shared src/main.c $CXXFLAGS -Wl,--no-undefined -o build/testclapplugin.clap \
-  #build/log.o \
+echo -n "log"; timer $CXX -c src/log.c -o build/log.o $CXXFLAGS
+echo -n "factory"; timer $CXX -c src/factory.c -o build/factory.o $CXXFLAGS
+echo -n "plugindescs"; timer $CXX -c src/plugindescs.c -o build/plugindescs.o $CXXFLAGS
+#echo -n "tables"; timer $CXX -c src/tables.cpp -o build/tables.o $CXXFLAGS
+#echo -n "osc"; timer $CXX -c src/osc.cpp -o build/osc.o $CXXFLAGS
+#echo -n "util"; timer $CXX -c src/util.cpp -o build/util.o $CXXFLAGS
+#echo -n "p000"; timer $CXX -c src/p000.cpp -o build/p000.o $CXXFLAGS
+#echo -n "p001"; timer $CXX -c src/p001.cpp -o build/p001.o $CXXFLAGS
+echo -n "main"; timer $CXX -shared src/main.c $CXXFLAGS -Wl,--no-undefined -o build/testclapplugin.clap \
+  build/log.o \
+  build/factory.o \
+  build/plugindescs.o \
   #build/tables.o \
   #build/osc.o \
-  #build/plugindescs.o \
-  #build/factory.o \
   #build/util.o \
   #build/p000.o \
   #build/p001.o \
