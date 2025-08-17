@@ -7,6 +7,10 @@
 #include "osc.h"
 #include "tables.h"
 
+#define PLG P000
+#define PLG_TICK P000_tick
+#define PLG_CREATE create_P000
+
 typedef struct {
   int pitch;
   double freq;
@@ -14,10 +18,9 @@ typedef struct {
   osc_t osc;
   bool active;
   bool release;
+} Voice;
 
-} P000;
-
-double p000_tick(P000* self) {
+static double voice_tick(Voice* self) {
   self->osc.freq = self->freq;
   double out = osc_tick(&self->osc);
   if (self->release) {
@@ -28,25 +31,25 @@ double p000_tick(P000* self) {
   return out;
 }
 
-P000 p000(int pitch) {
-  P000 p = { pitch, midipitch2freq(pitch), { 0.0, 0.05, et_fall_lin }, { 0.0, 0.0, wt_sin }, true, false };
+static Voice voice(int pitch) {
+  Voice p = { pitch, midipitch2freq(pitch), { 0.0, 0.05, et_fall_lin }, { 0.0, 0.0, wt_sin }, true, false };
   return p;
 }
 
 typedef struct {
-  P000 voices[16];
-} P000Data;
+  Voice voices[16];
+} PLG;
 
-static void add_voice_at_pitch(P000Data* self, int pitch) {
+static void add_voice_at_pitch(PLG* self, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (!self->voices[i].active) {
-      self->voices[i] = p000(pitch);
+      self->voices[i] = voice(pitch);
       break;
     }
   }
 }
 
-static void release_voice_at_pitch(P000Data* self, int pitch) {
+static void release_voice_at_pitch(PLG* self, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (self->voices[i].active && self->voices[i].pitch == pitch) {
       self->voices[i].release = true;
@@ -55,11 +58,11 @@ static void release_voice_at_pitch(P000Data* self, int pitch) {
   }
 }
 
-double p000data_tick(P000Data* self) {
+double PLG_TICK(PLG* self) {
   auto out = 0.0;
   for (int i = 0; i < 16; i++) {
     if (self->voices[i].active) {
-      out += p000_tick(&self->voices[i]);
+      out += voice_tick(&self->voices[i]);
     }
   }
   out *= 0.25;
@@ -111,7 +114,7 @@ static bool plugin_init(const struct clap_plugin* plugin) {
 
 static void plugin_destroy(const struct clap_plugin* plugin) {
   write_log("plugin_destroy");
-  free((P000Data*)plugin->plugin_data);
+  free((PLG*)plugin->plugin_data);
   free((struct clap_plugin*)plugin);
 }
 
@@ -154,10 +157,10 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
       // hdr->time - sample index within buffer
       if (hdr->type == 0) { // NOTE ON
         const clap_event_note_t *ev = (const clap_event_note_t *)hdr;
-        add_voice_at_pitch((P000Data*)plugin->plugin_data, ev->key);
+        add_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
       } else if (hdr->type == 1) { // NOTE OFF
         const clap_event_note_t *ev = (const clap_event_note_t *)hdr;
-        release_voice_at_pitch((P000Data*)plugin->plugin_data, ev->key);
+        release_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
       }
 
       ev_index++;
@@ -171,7 +174,7 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
       float L = process->audio_inputs[0].data32[0][i];
       float R = process->audio_inputs[0].data32[1][i];
 
-      auto out = p000data_tick((P000Data*)plugin->plugin_data);
+      auto out = PLG_TICK((PLG*)plugin->plugin_data);
       
       L += out;
       R += out;
@@ -199,7 +202,7 @@ static void plugin_on_main_thread(const struct clap_plugin *plugin) {
   write_log("plugin_on_main_thread");
 }
 
-const clap_plugin_t* create_P000(const clap_plugin_descriptor_t* plugindesc) {
+const clap_plugin_t* PLG_CREATE(const clap_plugin_descriptor_t* plugindesc) {
   clap_plugin_t* plugin = (clap_plugin_t*)calloc(1, sizeof(*plugin));
   plugin->desc = plugindesc;
   plugin->init = plugin_init;
@@ -212,7 +215,7 @@ const clap_plugin_t* create_P000(const clap_plugin_descriptor_t* plugindesc) {
   plugin->process = plugin_process;
   plugin->get_extension = plugin_get_extension;
   plugin->on_main_thread = plugin_on_main_thread;
-  P000Data* data = calloc(1, sizeof(*data));
+  PLG* data = calloc(1, sizeof(*data));
   plugin->plugin_data = data;
 
   return plugin;

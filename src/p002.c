@@ -7,9 +7,9 @@
 #include "osc.h"
 #include "tables.h"
 
-#define PLG P001
-#define PLG_TICK P001_tick
-#define PLG_CREATE create_P001
+#define PLG P002
+#define PLG_TICK P002_tick
+#define PLG_CREATE create_P002
 
 typedef struct {
   int pitch;
@@ -37,13 +37,12 @@ static Voice voice(int pitch) {
   return p;
 }
 
-#define N_VOICES 16
 typedef struct {
-  Voice voices[N_VOICES];
+  Voice voices[16];
 } PLG;
 
 static void add_voice_at_pitch(PLG* self, int pitch) {
-  for (int i = 0; i < N_VOICES; i++) {
+  for (int i = 0; i < 16; i++) {
     if (!self->voices[i].active) {
       self->voices[i] = voice(pitch);
       break;
@@ -52,7 +51,7 @@ static void add_voice_at_pitch(PLG* self, int pitch) {
 }
 
 static void release_voice_at_pitch(PLG* self, int pitch) {
-  for (int i = 0; i < N_VOICES; i++) {
+  for (int i = 0; i < 16; i++) {
     if (self->voices[i].active && self->voices[i].pitch == pitch) {
       self->voices[i].release = true;
       break;
@@ -62,7 +61,7 @@ static void release_voice_at_pitch(PLG* self, int pitch) {
 
 double PLG_TICK(PLG* self) {
   auto out = 0.0;
-  for (int i = 0; i < N_VOICES; i++) {
+  for (int i = 0; i < 16; i++) {
     if (self->voices[i].active) {
       out += voice_tick(&self->voices[i]);
     }

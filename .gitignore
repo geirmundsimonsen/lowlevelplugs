@@ -1,5 +1,6 @@
 clap
 build
+dist
 test
 plugin-template.c
 plugin.log
