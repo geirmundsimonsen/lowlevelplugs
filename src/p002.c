@@ -25,7 +25,6 @@ typedef struct {
   double k35_in[1];
   double k35_cutoff[1];
   double k35_q[1];
-  double k35_nonlinear[1];
   double k35_saturation[1];
   double k35_out[1];
 } Voice;
@@ -41,7 +40,6 @@ static double voice_tick(Voice* self) {
   self->k35_in[0] = out;
   self->k35_q[0] = 7;
   self->k35_cutoff[0] = 200 + tabplay_tick(&self->f_env) * 800;
-  self->k35_nonlinear[0] = 0;
   self->k35_saturation[0] = 1.0;
 
   k35_lpf_perf(&self->k35);
@@ -57,6 +55,7 @@ static double voice_tick(Voice* self) {
 static Voice voice(int pitch) {
   Voice v = {0};
   k35_lpf_init(&v.k35);
+  v.k35.nonlinear = false;
   v.pitch = pitch;
   v.osc.freq = midipitch2freq(pitch);
   v.osc.wt = wt_sin;
@@ -79,7 +78,6 @@ static void add_voice_at_pitch(PLG* self, int pitch) {
       self->voices[i].k35.in = self->voices[i].k35_in;
       self->voices[i].k35.cutoff = self->voices[i].k35_cutoff;
       self->voices[i].k35.q = self->voices[i].k35_q;
-      self->voices[i].k35.nonlinear = self->voices[i].k35_nonlinear;
       self->voices[i].k35.saturation = self->voices[i].k35_saturation;
       self->voices[i].k35.out = self->voices[i].k35_out;
       break;

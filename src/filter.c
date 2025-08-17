@@ -46,7 +46,6 @@ void k35_lpf_perf(K35_LPF* p) {
   double cutoff = cutoff_arate ? 0.0 : *p->cutoff;
   double q = q_arate ? 0.0 : *p->q;
 
-  int nonlinear = MYFLT2LONG(*p->nonlinear);
   double saturation = *p->saturation;
 
   for (n = 0; n < nsmps; n++) {
@@ -87,7 +86,7 @@ void k35_lpf_perf(K35_LPF* p) {
 
     double u = alpha * (lp1 + S35);
 
-    if (nonlinear) {
+    if (p->nonlinear) {
       u = tanh(u * saturation);
     }
 
