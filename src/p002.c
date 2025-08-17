@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "log.h"
 #include "util.h"
 #include "osc.h"
@@ -26,7 +27,6 @@ typedef struct {
   double k35_q[1];
   double k35_nonlinear[1];
   double k35_saturation[1];
-  double k35_skip[1];
   double k35_out[1];
 } Voice;
 
@@ -38,20 +38,11 @@ static double voice_tick(Voice* self) {
     out = -0.40;
   }
 
-  self->k35.in = self->k35_in;
-  self->k35.cutoff = self->k35_cutoff;
-  self->k35.q = self->k35_q;
-  self->k35.nonlinear = self->k35_nonlinear;
-  self->k35.saturation = self->k35_saturation;
-  //self->k35.skip = self->k35_skip;
-  self->k35.out = self->k35_out;
-
   self->k35_in[0] = out;
   self->k35_q[0] = 7;
   self->k35_cutoff[0] = 200 + tabplay_tick(&self->f_env) * 800;
   self->k35_nonlinear[0] = 0;
   self->k35_saturation[0] = 1.0;
-  //self->k35_skip[0] = 0;
 
   k35_lpf_perf(&self->k35);
   out = self->k35_out[0];
@@ -65,13 +56,6 @@ static double voice_tick(Voice* self) {
 
 static Voice voice(int pitch) {
   Voice v = {0};
-  /*v.k35.in = v.k35_in;
-  v.k35.cutoff = v.k35_cutoff;
-  v.k35.q = v.k35_q;
-  v.k35.nonlinear = v.k35_nonlinear;
-  v.k35.saturation = v.k35_saturation;
-  v.k35.out = v.k35_out;*/
-  v.k35.skip = v.k35_skip;
   k35_lpf_init(&v.k35);
   v.pitch = pitch;
   v.osc.freq = midipitch2freq(pitch);
@@ -92,6 +76,12 @@ static void add_voice_at_pitch(PLG* self, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (!self->voices[i].active) {
       self->voices[i] = voice(pitch);
+      self->voices[i].k35.in = self->voices[i].k35_in;
+      self->voices[i].k35.cutoff = self->voices[i].k35_cutoff;
+      self->voices[i].k35.q = self->voices[i].k35_q;
+      self->voices[i].k35.nonlinear = self->voices[i].k35_nonlinear;
+      self->voices[i].k35.saturation = self->voices[i].k35_saturation;
+      self->voices[i].k35.out = self->voices[i].k35_out;
       break;
     }
   }

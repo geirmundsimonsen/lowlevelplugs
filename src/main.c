@@ -1,5 +1,6 @@
 #include "../clap/include/clap/entry.h"
 
+#include <stdbool.h>
 #include "log.h"
 #include "factory.h"
 
