@@ -13,15 +13,13 @@
 
 typedef struct {
   int pitch;
-  double freq;
-  tabplay_t rel_env;
   osc_t osc;
+  tabplay_t rel_env;
   bool active;
   bool release;
 } Voice;
 
 static double voice_tick(Voice* self) {
-  self->osc.freq = self->freq;
   double out = osc_tick(&self->osc);
   if (self->release) {
     auto rel = tabplay_tick(&self->rel_env);
@@ -32,8 +30,14 @@ static double voice_tick(Voice* self) {
 }
 
 static Voice voice(int pitch) {
-  Voice p = { pitch, midipitch2freq(pitch), { 0.0, 0.05, et_fall_lin }, { 0.0, 0.0, wt_sin }, true, false };
-  return p;
+  Voice v = {0};
+  v.pitch = pitch;
+  v.osc.freq = midipitch2freq(pitch);
+  v.osc.wt = wt_sin;
+  v.rel_env.s = 0.05;
+  v.rel_env.wt = et_fall_lin;
+  v.active = true;
+  return v;
 }
 
 typedef struct {

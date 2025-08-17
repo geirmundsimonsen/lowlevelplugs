@@ -15,8 +15,8 @@ typedef struct {
   int pitch;
   double freq;
   tabplay_t f_env;
-  tabplay_t rel_env;
   osc_t osc;
+  tabplay_t rel_env;
   bool active;
   bool release;
 } Voice;
@@ -33,8 +33,16 @@ static double voice_tick(Voice* self) {
 }
 
 static Voice voice(int pitch) {
-  Voice p = { pitch, midipitch2freq(pitch), { 0.0, 0.2, et_fall_exp_3 }, { 0.0, 0.05, et_fall_lin }, { 0.0, 0.0, wt_sin }, true, false };
-  return p;
+  Voice v = {0};
+  v.pitch = pitch;
+  v.freq = midipitch2freq(pitch);
+  v.osc.wt = wt_sin;
+  v.f_env.s = 0.2;
+  v.f_env.wt = et_fall_exp_3;
+  v.rel_env.s = 0.05;
+  v.rel_env.wt = et_fall_lin;
+  v.active = true;
+  return v;
 }
 
 #define N_VOICES 16
