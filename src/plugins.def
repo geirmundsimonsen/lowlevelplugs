@@ -1,1 +1,2 @@
 X(000, "sine", instrument_stereo)
+X(001, "kick", instrument_stereo)
