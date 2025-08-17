@@ -1,0 +1,7 @@
+clap
+build
+test
+plugin-template.c
+plugin.log
+src/tables.h
+src/tables.cpp
