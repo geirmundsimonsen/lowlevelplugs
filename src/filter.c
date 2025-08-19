@@ -6,7 +6,100 @@
 #define TWOPI 3.14159265358979323846 * 2
 #define MYFLT2LONG(x) ((int)(x))
 
-void k35_lpf_init(K35_LPF* p) {
+K35_LPF k35_lpf_init(double sr) {
+  K35_LPF k35 = {0};
+
+  k35.last_cut = -1.0;
+  k35.last_q = -1.0;
+
+  double inv_sr = 1.0 / sr;
+  k35.Tdiv2 = inv_sr / 2.0;
+  k35.two_div_T = 2.0 / inv_sr;
+
+  return k35;
+}
+
+void k35_lpf_tick(K35_LPF* p) {
+  double z1 = p->z1;
+  double z2 = p->z2;
+  double z3 = p->z3;
+  double last_cut = p->last_cut;
+  double last_q = p->last_q;
+  double g = p->g;
+  double G = p->G;
+  double K = p->K;
+  double S35 = p->S35;
+  double alpha = p->alpha;
+  double lpf2_beta = p->lpf2_beta;
+  double hpf1_beta = p->hpf1_beta;
+
+  double cutoff = p->cutoff;
+  double q = p->q;
+  q = (q > 10.0) ? 10.0 : (q < 1.0) ? 1.0 : q;
+
+  double saturation = p->saturation;
+  double in = p->in;
+
+  if (cutoff != last_cut) {
+    double wd = TWOPI * cutoff;
+    double wa = p->two_div_T * tan(wd * p->Tdiv2);
+    g = wa * p->Tdiv2;
+    G = g / (1.0 + g);
+  }
+
+  if (q != last_q) {
+    K = 0.01 + ((2.0 - 0.01) * (q / 10.0));
+  }
+
+  if ((cutoff != last_cut) || (q != last_q)) {
+    lpf2_beta = (K - (K * G)) / (1.0 + g);
+    hpf1_beta = -1.0 / (1.0 + g);
+    alpha = 1.0 / (1.0 - (K * G) + (K * G * G));
+  }
+
+  last_cut = cutoff;
+  last_q = q;
+
+  double v1 = (in - z1) * G;
+  double lp1 = v1 + z1;
+  z1 = lp1 + v1;
+
+  double u = alpha * (lp1 + S35);
+
+  if (p->nonlinear) {
+    u = tanh(u * saturation);
+  }
+
+  double v2 = (u - z2) * G;
+  double lp2 = v2 + z2;
+  z2 = lp2 + v2;
+  double y = K * lp2;
+
+
+  double v3 = (y - z3) * G;
+  double lp3 = v3 + z3;
+  z3 = lp3 + v3;
+
+  S35 = (lpf2_beta * z2) + (hpf1_beta * z3);
+  double out = (K > 0) ? (y / K) : y;
+
+  p->out = out;
+
+  p->z1 = z1;
+  p->z2 = z2;
+  p->z3 = z3;
+  p->last_cut = last_cut;
+  p->last_q = last_q;
+  p->g = g;
+  p->G = G;
+  p->K = K;
+  p->S35 = S35;
+  p->alpha = alpha;
+  p->lpf2_beta = lpf2_beta;
+  p->hpf1_beta = hpf1_beta;
+}
+
+void k35_lpf_old_init(K35_LPF_old* p) {
   p->z1 = 0.0;
   p->z2 = 0.0;
   p->z3 = 0.0;
@@ -20,7 +113,7 @@ void k35_lpf_init(K35_LPF* p) {
   p->hpf1_beta = 0.0;
 }
 
-void k35_lpf_perf(K35_LPF* p) {
+void k35_lpf_old_perf(K35_LPF_old* p) {
   double z1 = p->z1;
   double z2 = p->z2;
   double z3 = p->z3;

@@ -12,21 +12,16 @@
 #define PLG P002
 #define PLG_TICK P002_tick
 #define PLG_CREATE create_P002
+#define SR 48000
 
 typedef struct {
   int pitch;
-  tabplay_t rel_env;
-  osc_t osc;
-  tabplay_t f_env;
-  K35_LPF k35;
+  TabPlay rel_env;
+  Osc osc;
+  TabPlay f_env;
+  K35_LPF lpf;
   bool active;
   bool release;
-
-  double k35_in[1];
-  double k35_cutoff[1];
-  double k35_q[1];
-  double k35_saturation[1];
-  double k35_out[1];
 } Voice;
 
 static double voice_tick(Voice* self) {
@@ -37,13 +32,12 @@ static double voice_tick(Voice* self) {
     out = -0.40;
   }
 
-  self->k35_in[0] = out;
-  self->k35_q[0] = 7;
-  self->k35_cutoff[0] = 200 + tabplay_tick(&self->f_env) * 800;
-  self->k35_saturation[0] = 1.0;
-
-  k35_lpf_perf(&self->k35);
-  out = self->k35_out[0];
+  self->lpf.in = out;
+  self->lpf.q = 7;
+  self->lpf.cutoff = 200 + tabplay_tick(&self->f_env) * 800;
+  
+  k35_lpf_tick(&self->lpf);
+  out = self->lpf.out;
   if (self->release) {
     auto rel = tabplay_tick(&self->rel_env);
     out *= rel;
@@ -52,10 +46,14 @@ static double voice_tick(Voice* self) {
   return out;
 }
 
-static Voice voice(int pitch) {
+static Voice voice_init(int pitch) {
   Voice v = {0};
-  k35_lpf_init(&v.k35);
-  v.k35.nonlinear = false;
+  v.lpf = k35_lpf_init(SR);
+  v.osc = osc_init(SR);
+  v.f_env = tabplay_init(SR);
+  v.rel_env = tabplay_init(SR);
+  v.lpf.saturation = 1.0;
+  v.lpf.nonlinear = false;
   v.pitch = pitch;
   v.osc.freq = midipitch2freq(pitch);
   v.osc.wt = wt_sin;
@@ -74,12 +72,7 @@ typedef struct {
 static void add_voice_at_pitch(PLG* self, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (!self->voices[i].active) {
-      self->voices[i] = voice(pitch);
-      self->voices[i].k35.in = self->voices[i].k35_in;
-      self->voices[i].k35.cutoff = self->voices[i].k35_cutoff;
-      self->voices[i].k35.q = self->voices[i].k35_q;
-      self->voices[i].k35.saturation = self->voices[i].k35_saturation;
-      self->voices[i].k35.out = self->voices[i].k35_out;
+      self->voices[i] = voice_init(pitch);
       break;
     }
   }

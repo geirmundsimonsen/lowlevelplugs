@@ -1,18 +1,21 @@
 #include "tables.h"
 
-typedef struct osc {
+typedef struct {
   double phase;
   double freq;
+  double inv_sr;
   table_t wt;
-} osc_t;
+} Osc;
 
-double osc_tick(osc_t* osc);
+Osc osc_init(double sr);
+double osc_tick(Osc* osc);
 
 typedef struct tabplay {
   double phase;
   double s;
+  double inv_sr;
   table_t wt;
+} TabPlay;
 
-} tabplay_t;
-
-double tabplay_tick(tabplay_t* tabplay);
+TabPlay tabplay_init(double sr);
+double tabplay_tick(TabPlay* tabplay);

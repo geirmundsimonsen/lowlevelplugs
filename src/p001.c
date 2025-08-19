@@ -11,13 +11,14 @@
 #define PLG P001
 #define PLG_TICK P001_tick
 #define PLG_CREATE create_P001
+#define SR 48000
 
 typedef struct {
   int pitch;
   double freq;
-  tabplay_t f_env;
-  osc_t osc;
-  tabplay_t rel_env;
+  TabPlay f_env;
+  Osc osc;
+  TabPlay rel_env;
   bool active;
   bool release;
 } Voice;
@@ -33,8 +34,11 @@ static double voice_tick(Voice* self) {
   return out;
 }
 
-static Voice voice(int pitch) {
+static Voice voice_init(int pitch) {
   Voice v = {0};
+  v.osc = osc_init(SR);
+  v.f_env = tabplay_init(SR);
+  v.rel_env = tabplay_init(SR);
   v.pitch = pitch;
   v.freq = midipitch2freq(pitch);
   v.osc.wt = wt_sin;
@@ -54,7 +58,7 @@ typedef struct {
 static void add_voice_at_pitch(PLG* self, int pitch) {
   for (int i = 0; i < N_VOICES; i++) {
     if (!self->voices[i].active) {
-      self->voices[i] = voice(pitch);
+      self->voices[i] = voice_init(pitch);
       break;
     }
   }

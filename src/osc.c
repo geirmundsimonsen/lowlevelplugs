@@ -2,24 +2,36 @@
 
 #include <math.h>
 
-double osc_tick(osc_t* osc) {
-  osc->phase += osc->freq / 48000;
+Osc osc_init(double sr) {
+  Osc osc = {0};
+  osc.inv_sr = 1.0 / sr;
+  return osc;
+}
+
+double osc_tick(Osc* osc) {
+  osc->phase += osc->freq * osc->inv_sr;
   if (osc->phase >= 1) {
     osc->phase -= 1;
   } 
   double cont_index = osc->phase * (osc->wt.size-1);
-
+  
   double integral = 0;
   double frac = modf(cont_index, &integral);
   double indexed_val_1 = osc->wt.wt[(int)integral];
   double indexed_val_2 = osc->wt.wt[(int)(integral+1)];
   double interpolated_value = indexed_val_1 + (indexed_val_2 - indexed_val_1) * frac;
-
+  
   return interpolated_value;
 }
 
-double tabplay_tick(tabplay_t* tp) {
-  tp->phase += (1.0 / tp->s) / 48000;
+TabPlay tabplay_init(double sr) {
+  TabPlay tp = {0};
+  tp.inv_sr = 1.0 / sr;
+  return tp;
+}
+
+double tabplay_tick(TabPlay* tp) {
+  tp->phase += (1.0 / tp->s) * tp->inv_sr;
   if (tp->phase >= 1) {
     tp->phase = 1;
   } 
