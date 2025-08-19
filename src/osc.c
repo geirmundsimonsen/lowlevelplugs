@@ -12,7 +12,7 @@ double osc_tick(Osc* osc) {
   osc->phase += osc->freq * osc->inv_sr;
   if (osc->phase >= 1) {
     osc->phase -= 1;
-  } 
+  }
   double cont_index = osc->phase * (osc->wt.size-1);
   
   double integral = 0;
@@ -23,6 +23,25 @@ double osc_tick(Osc* osc) {
   
   return interpolated_value;
 }
+
+Pulse pulse_init(double sr) {
+  Pulse pulse = {0};
+  pulse.inv_sr = 1.0 / sr;
+  return pulse;
+}
+
+double pulse_tick(Pulse* p) {
+  p->phase += p->freq * p->inv_sr;
+  if (p->phase >= 1) {
+    p->phase -= 1;
+  }
+  if (p->phase < p->duty) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 
 TabPlay tabplay_init(double sr) {
   TabPlay tp = {0};

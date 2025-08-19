@@ -36,8 +36,7 @@ static double voice_tick(Voice* self) {
   self->lpf.q = 7;
   self->lpf.cutoff = 200 + tabplay_tick(&self->f_env) * 800;
   
-  k35_lpf_tick(&self->lpf);
-  out = self->lpf.out;
+  out = k35_lpf_tick(&self->lpf);
   if (self->release) {
     auto rel = tabplay_tick(&self->rel_env);
     out *= rel;
@@ -183,7 +182,6 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
         break;
       }
 
-      // hdr->time - sample index within buffer
       if (hdr->type == 0) { // NOTE ON
         const clap_event_note_t *ev = (const clap_event_note_t *)hdr;
         add_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
