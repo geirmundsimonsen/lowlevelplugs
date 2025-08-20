@@ -33,6 +33,7 @@ desc "util"; timer $CXX -c src/util.c -o dist/util.o $CXXFLAGS
 desc "p000"; timer $CXX -c src/p000.c -o dist/p000.o $CXXFLAGS
 desc "p001"; timer $CXX -c src/p001.c -o dist/p001.o $CXXFLAGS
 desc "p002"; timer $CXX -c src/p002.c -o dist/p002.o $CXXFLAGS
+desc "p003"; timer $CXX -c src/p003.c -o dist/p003.o $CXXFLAGS
 desc "main"; timer $CXX -shared src/main.c $CXXFLAGS -Wl,--no-undefined -o dist/lowlevelplugs.clap -lm \
   dist/log.o \
   dist/factory.o \
@@ -44,6 +45,7 @@ desc "main"; timer $CXX -shared src/main.c $CXXFLAGS -Wl,--no-undefined -o dist/
   dist/p000.o \
   dist/p001.o \
   dist/p002.o \
+  dist/p003.o \
   #raylib/src/libraylib.a \
   #/usr/lib/libcsound64.so \
   #-ljack \

@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 typedef struct {
-  double in, cutoff, q, saturation;
+  double in, freq, q, saturation;
   bool nonlinear;
   double Tdiv2, two_div_T;
   double z1, z2, z3, last_cut, last_q, g, G, K, S35, alpha, lpf2_beta, hpf1_beta;

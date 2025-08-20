@@ -9,34 +9,35 @@
 #include "filter.h"
 #include "tables.h"
 
-#define PLG P002
-#define PLG_TICK P002_tick
-#define PLG_CREATE create_P002
+#define PLG P003
+#define PLG_TICK P003_tick
+#define PLG_CREATE create_P003
 #define SR 48000
+#define OS 16
 
 typedef struct {
   int pitch;
-  TabPlay rel_env;
-  Osc osc;
-  TabPlay f_env;
+  Pulse pulse1;
+  Pulse pulse2;
   K35_LPF lpf;
+  TabPlay rel_env;
   bool active;
   bool release;
 } Voice;
 
 static double voice_tick(Voice* self) {
-  double out = osc_tick(&self->osc);
-  if (out > 0.40) {
-    out = 0.40;
-  } else if (out < -0.40) {
-    out = -0.40;
+  double out = 0;
+  for (int i = 0; i < OS; i++) {
+    double pulse1 = pulse_tick(&self->pulse1);
+    double pulse2 = pulse_tick(&self->pulse2);
+    self->pulse1.duty = 0.5 + pulse2 * 0.3;
+    self->pulse2.duty = 0.5 + pulse1 * 0.3;
+    pulse1 *= 0.3;
+    pulse2 *= 0.3;
+    self->lpf.in = pulse1;
+    out = k35_lpf_tick(&self->lpf);
   }
 
-  self->lpf.in = out;
-  self->lpf.q = 7;
-  self->lpf.freq = 200 + tabplay_tick(&self->f_env) * 800;
-  
-  out = k35_lpf_tick(&self->lpf);
   if (self->release) {
     auto rel = tabplay_tick(&self->rel_env);
     out *= rel;
@@ -47,15 +48,14 @@ static double voice_tick(Voice* self) {
 
 static Voice voice_init(int pitch) {
   Voice v = {0};
-  v.lpf = k35_lpf_init(SR);
-  v.osc = osc_init(SR);
-  v.f_env = tabplay_init(SR);
+  v.pulse1 = pulse_init(SR*OS);
+  v.pulse2 = pulse_init(SR*OS);
+  v.lpf = k35_lpf_init(SR*OS);
   v.rel_env = tabplay_init(SR);
-  v.osc.freq = midipitch2freq(pitch);
 
-  v.osc.wt = wt_sin;
-  v.f_env.s = 2;
-  v.f_env.wt = et_fall_exp_2;
+  v.pulse1.freq = midipitch2freq(pitch) + 0.1;
+  v.pulse2.freq = midipitch2freq(pitch) - 0.1;
+  v.lpf.freq = 1000;
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
 

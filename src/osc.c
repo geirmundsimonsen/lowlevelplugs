@@ -27,6 +27,7 @@ double osc_tick(Osc* osc) {
 Pulse pulse_init(double sr) {
   Pulse pulse = {0};
   pulse.inv_sr = 1.0 / sr;
+  pulse.duty = 0.5;
   return pulse;
 }
 
@@ -38,7 +39,7 @@ double pulse_tick(Pulse* p) {
   if (p->phase < p->duty) {
     return 1;
   } else {
-    return 0;
+    return -1;
   }
 }
 

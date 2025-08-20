@@ -9,6 +9,11 @@
 K35_LPF k35_lpf_init(double sr) {
   K35_LPF k35 = {0};
 
+  k35.freq = 400;
+  k35.saturation = 1.0;
+  k35.q = 1.0;
+  k35.nonlinear = false;
+
   k35.last_cut = -1.0;
   k35.last_q = -1.0;
 
@@ -33,7 +38,7 @@ double k35_lpf_tick(K35_LPF* p) {
   double lpf2_beta = p->lpf2_beta;
   double hpf1_beta = p->hpf1_beta;
 
-  double cutoff = p->cutoff;
+  double cutoff = p->freq;
   double q = p->q;
   q = (q > 10.0) ? 10.0 : (q < 1.0) ? 1.0 : q;
 

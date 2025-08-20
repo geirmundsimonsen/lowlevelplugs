@@ -1,3 +1,4 @@
 X(000, "sine", instrument_stereo)
 X(001, "kick", instrument_stereo)
 X(002, "", instrument_stereo)
+X(003, "pulse", instrument_stereo)
