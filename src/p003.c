@@ -1,4 +1,5 @@
 #include "../clap/include/clap/clap.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -16,46 +17,88 @@
 #define OS 16
 
 typedef struct {
+  double l;
+  double r;
+} StereoOut;
+
+static double freq_deviation;
+static double cross_pulse_duty_strength;
+static double duty;
+static double pulse2vol;
+static double stereo_spread;
+static void update_cc_params(int cc_num, double cc_val) {
+  if (cc_num == 1) {
+    freq_deviation = pow(cc_val, 2) * 10;
+  } else if (cc_num == 2) {
+    duty = pow(cc_val, 0.75) * 0.5;
+  } else if (cc_num == 3) {
+    cross_pulse_duty_strength = cc_val;
+  } else if (cc_num == 4) {
+    pulse2vol = cc_val;
+  } else if (cc_num == 5) {
+    stereo_spread = cc_val;
+  }
+}
+
+typedef struct {
   int pitch;
+  double freq;
   Pulse pulse1;
   Pulse pulse2;
-  K35_LPF lpf;
+  K35_LPF lpfL;
+  K35_LPF lpfR;
   TabPlay rel_env;
   bool active;
   bool release;
 } Voice;
 
-static double voice_tick(Voice* self) {
-  double out = 0;
+static StereoOut voice_tick(Voice* self) {
+  StereoOut so = { 0 };
   for (int i = 0; i < OS; i++) {
     double pulse1 = pulse_tick(&self->pulse1);
     double pulse2 = pulse_tick(&self->pulse2);
-    self->pulse1.duty = 0.5 + pulse2 * 0.3;
-    self->pulse2.duty = 0.5 + pulse1 * 0.3;
+    self->pulse1.freq = self->freq + freq_deviation;
+    self->pulse2.freq = self->freq - freq_deviation;
+    self->pulse1.duty = duty + 0.5 + pulse2 * cross_pulse_duty_strength * (0.5 - duty);
+    self->pulse2.duty = duty + 0.5 + pulse1 * cross_pulse_duty_strength * (0.5 - duty);
     pulse1 *= 0.3;
     pulse2 *= 0.3;
-    self->lpf.in = pulse1;
-    out = k35_lpf_tick(&self->lpf);
+    self->lpfL.in = pulse1;
+    self->lpfR.in = pulse2 * pulse2vol;
+    
+    double lpfL = k35_lpf_tick(&self->lpfL);
+    double lpfR = k35_lpf_tick(&self->lpfR);
+
+    if (i == OS-1) {
+      so.l = lpfL;
+      so.r = lpfR;
+      so.l += lpfR * (1-stereo_spread);
+      so.r += lpfL * (1-stereo_spread);
+    }
   }
 
   if (self->release) {
     auto rel = tabplay_tick(&self->rel_env);
-    out *= rel;
+    so.l *= rel;
+    so.r *= rel;
     if (self->rel_env.phase == 1) { self->active = false; }
   }
-  return out;
+  return so;
 }
 
 static Voice voice_init(int pitch) {
   Voice v = {0};
   v.pulse1 = pulse_init(SR*OS);
   v.pulse2 = pulse_init(SR*OS);
-  v.lpf = k35_lpf_init(SR*OS);
+  v.lpfL = k35_lpf_init(SR*OS);
+  v.lpfR = k35_lpf_init(SR*OS);
   v.rel_env = tabplay_init(SR);
 
-  v.pulse1.freq = midipitch2freq(pitch) + 0.1;
-  v.pulse2.freq = midipitch2freq(pitch) - 0.1;
-  v.lpf.freq = 1000;
+  v.freq = midipitch2freq(pitch);
+  //v.pulse1.freq = midipitch2freq(pitch) + ccs[1] * 2;
+  //v.pulse2.freq = midipitch2freq(pitch) - ccs[1] * 2;
+  v.lpfL.freq = 1000;
+  v.lpfR.freq = 1000;
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
 
@@ -86,14 +129,17 @@ static void release_voice_at_pitch(PLG* self, int pitch) {
   }
 }
 
-double PLG_TICK(PLG* self) {
-  auto out = 0.0;
+StereoOut PLG_TICK(PLG* self) {
+  StereoOut out = { 0 };
   for (int i = 0; i < 16; i++) {
     if (self->voices[i].active) {
-      out += voice_tick(&self->voices[i]);
+      StereoOut voiceOut = voice_tick(&self->voices[i]);
+      out.l += voiceOut.l;
+      out.r += voiceOut.r;
     }
   }
-  out *= 0.25;
+  out.l *= 0.25;
+  out.r *= 0.25;
   return out;
 }
 
@@ -125,7 +171,7 @@ static bool plugin_note_ports_get(const clap_plugin_t* plugin, uint32_t index, b
   if (index > 0) { return false; }
   info->id = 0;
   snprintf(info->name, sizeof(info->name), "%s", "Note Port 1");
-  info->supported_dialects = CLAP_NOTE_DIALECT_CLAP | CLAP_NOTE_DIALECT_MIDI_MPE | CLAP_NOTE_DIALECT_MIDI2;
+  info->supported_dialects = CLAP_NOTE_DIALECT_CLAP | CLAP_NOTE_DIALECT_MIDI | CLAP_NOTE_DIALECT_MIDI_MPE | CLAP_NOTE_DIALECT_MIDI2;
   info->preferred_dialect = CLAP_NOTE_DIALECT_CLAP;
   return true;
 }
@@ -181,13 +227,18 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
         next_ev_frame = hdr->time;
         break;
       }
-
+      
       if (hdr->type == 0) { // NOTE ON
-        const clap_event_note_t *ev = (const clap_event_note_t *)hdr;
+        const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
         add_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
       } else if (hdr->type == 1) { // NOTE OFF
-        const clap_event_note_t *ev = (const clap_event_note_t *)hdr;
+        const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
         release_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
+      } else if (hdr->type == 10) { // MIDI
+        const clap_event_midi_t *ev = (const clap_event_midi_t*)hdr;
+        if (ev->data[0] == 176) { // cc ch. 1
+          update_cc_params(ev->data[1], (double)ev->data[2] / 127.0); 
+        }
       }
 
       ev_index++;
@@ -201,10 +252,10 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
       float L = process->audio_inputs[0].data32[0][i];
       float R = process->audio_inputs[0].data32[1][i];
 
-      auto out = PLG_TICK((PLG*)plugin->plugin_data);
+      StereoOut out = PLG_TICK((PLG*)plugin->plugin_data);
       
-      L += out;
-      R += out;
+      L += out.l;
+      R += out.r;
 
       process->audio_outputs[0].data32[0][i] = L;
       process->audio_outputs[0].data32[1][i] = R;
