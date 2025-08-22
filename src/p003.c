@@ -28,6 +28,7 @@ static double pulse2vol;
 static double stereo_spread;
 static double filter_freq;
 static double filter_q;
+static double cross_filter_freq_fb;
 static void update_cc_params(int cc_num, double cc_val) {
   if (cc_num == 1) {
     freq_deviation = pow(cc_val, 2) * 10;
@@ -43,6 +44,8 @@ static void update_cc_params(int cc_num, double cc_val) {
     filter_freq = pow(cc_val, 2) * 10000 + 40;
   } else if (cc_num == 7) {
     filter_q = cc_val + 1 * 9;
+  } else if (cc_num == 8) {
+    cross_filter_freq_fb = cc_val * 3;
   }
 }
 
@@ -53,55 +56,10 @@ typedef struct {
   Pulse pulse2;
   K35_LPF lpfL;
   K35_LPF lpfR;
-  FixedBLP8 blpL;
-  FixedBLP8 blpR;
   TabPlay rel_env;
   bool active;
   bool release;
 } Voice;
-
-static StereoOut voice_tick(Voice* self) {
-  StereoOut so = { 0 };
-  for (int i = 0; i < OS; i++) {
-    double pulse1 = pulse_tick(&self->pulse1);
-    double pulse2 = pulse_tick(&self->pulse2);
-    self->pulse1.freq = self->freq + freq_deviation;
-    self->pulse2.freq = self->freq - freq_deviation;
-    self->pulse1.duty = duty + 0.5 + pulse2 * cross_pulse_duty_strength * (0.5 - duty);
-    self->pulse2.duty = duty + 0.5 + pulse1 * cross_pulse_duty_strength * (0.5 - duty);
-    pulse1 *= 0.3;
-    pulse2 *= 0.3;
-    self->lpfL.in = pulse1;
-    self->lpfR.in = pulse2 * pulse2vol;
-    
-    self->lpfL.freq = filter_freq;
-    self->lpfR.freq = filter_freq;
-    self->lpfL.q = filter_q;
-    self->lpfR.q = filter_q;
-    double lpfL = k35_lpf_tick(&self->lpfL);
-    double lpfR = k35_lpf_tick(&self->lpfR);
-
-    self->blpL.in = lpfL;
-    self->blpR.in = lpfR;
-    lpfL = fixedblp8_tick(&self->blpL);
-    lpfR = fixedblp8_tick(&self->blpR);
-    
-    if (i == OS-1) {
-      so.l = lpfL;
-      so.r = lpfR;
-      so.l += lpfR * (1-stereo_spread);
-      so.r += lpfL * (1-stereo_spread);
-    }
-  }
-
-  if (self->release) {
-    auto rel = tabplay_tick(&self->rel_env);
-    so.l *= rel;
-    so.r *= rel;
-    if (self->rel_env.phase == 1) { self->active = false; }
-  }
-  return so;
-}
 
 static Voice voice_init(int pitch) {
   Voice v = {0};
@@ -109,9 +67,7 @@ static Voice voice_init(int pitch) {
   v.pulse2 = pulse_init(SR*OS);
   v.lpfL = k35_lpf_init(SR*OS);
   v.lpfR = k35_lpf_init(SR*OS);
-  v.blpL = fixedblp8_init(SR*OS, 12000);
-  v.blpR = fixedblp8_init(SR*OS, 12000);
-  v.rel_env = tabplay_init(SR);
+  v.rel_env = tabplay_init(SR*OS);
 
   v.freq = midipitch2freq(pitch);
   v.rel_env.s = 0.05;
@@ -122,8 +78,47 @@ static Voice voice_init(int pitch) {
   return v;
 }
 
+static int foo = 0;
+
+static StereoOut voice_tick(Voice* self) {
+  StereoOut so = { 0 };
+
+  double pulse1 = pulse_tick(&self->pulse1);
+  double pulse2 = pulse_tick(&self->pulse2);
+  self->pulse1.freq = self->freq + freq_deviation;
+  self->pulse2.freq = self->freq - freq_deviation;
+  self->pulse1.duty = duty + 0.5 + pulse2 * cross_pulse_duty_strength * (0.5 - duty);
+  self->pulse2.duty = duty + 0.5 + pulse1 * cross_pulse_duty_strength * (0.5 - duty);
+  pulse1 *= 0.3;
+  pulse2 *= 0.3;
+  self->lpfL.in = pulse1;
+  self->lpfR.in = pulse2 * pulse2vol;
+  
+  self->lpfL.q = filter_q;
+  self->lpfR.q = filter_q;
+  double lpfL = k35_lpf_tick(&self->lpfL);
+  double lpfR = k35_lpf_tick(&self->lpfR);
+  self->lpfL.freq = filter_freq + lpfR * filter_freq * cross_filter_freq_fb;
+  self->lpfR.freq = filter_freq + lpfL * filter_freq * cross_filter_freq_fb;
+
+  so.l = lpfL;
+  so.r = lpfR;
+  so.l += lpfR * (1-stereo_spread);
+  so.r += lpfL * (1-stereo_spread);
+
+  if (self->release) {
+    auto rel = tabplay_tick(&self->rel_env);
+    so.l *= rel;
+    so.r *= rel;
+    if (self->rel_env.phase == 1) { self->active = false; }
+  }
+  return so;
+}
+
 typedef struct {
   Voice voices[16];
+  FixedBLP8 fixed_lpf_l;
+  FixedBLP8 fixed_lpf_r;
 } PLG;
 
 static void add_voice_at_pitch(PLG* self, int pitch) {
@@ -145,12 +140,23 @@ static void release_voice_at_pitch(PLG* self, int pitch) {
 }
 
 StereoOut PLG_TICK(PLG* self) {
+  foo++;
   StereoOut out = { 0 };
-  for (int i = 0; i < 16; i++) {
-    if (self->voices[i].active) {
-      StereoOut voiceOut = voice_tick(&self->voices[i]);
-      out.l += voiceOut.l;
-      out.r += voiceOut.r;
+  for (int i = 0; i < OS; i++) { // oversampling block
+    for (int i = 0; i < 16; i++) {
+      if (self->voices[i].active) {
+        StereoOut voiceOut;
+        voiceOut = voice_tick(&self->voices[i]);
+        out.l += voiceOut.l;
+        out.r += voiceOut.r;
+      }
+    }
+    self->fixed_lpf_l.in = out.l;
+    self->fixed_lpf_r.in = out.r;
+    out.l = fixedblp8_tick(&self->fixed_lpf_l);
+    out.r = fixedblp8_tick(&self->fixed_lpf_r);
+    if (fabs(out.l) < 0.0001 || fabs(out.r) < 0.0001) {
+      break; // cut the remaining oversampling passes if no sound
     }
   }
   out.l *= 0.25;
@@ -309,6 +315,8 @@ const clap_plugin_t* PLG_CREATE(const clap_plugin_descriptor_t* plugindesc) {
   plugin->get_extension = plugin_get_extension;
   plugin->on_main_thread = plugin_on_main_thread;
   PLG* data = calloc(1, sizeof(*data));
+  data->fixed_lpf_l = fixedblp8_init(SR*OS, 13000);
+  data->fixed_lpf_r = fixedblp8_init(SR*OS, 13000);
   plugin->plugin_data = data;
 
   return plugin;
