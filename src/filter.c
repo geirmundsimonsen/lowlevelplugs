@@ -3,7 +3,9 @@
 #include <math.h>
 #include "log.h"
 
+#define PI 3.14159265358979323846
 #define TWOPI 3.14159265358979323846 * 2
+#define ROOT2 1.414213562373095048801688724209698078569
 #define MYFLT2LONG(x) ((int)(x))
 
 K35_LPF k35_lpf_init(double sr) {
@@ -102,4 +104,106 @@ double k35_lpf_tick(K35_LPF* p) {
   p->hpf1_beta = hpf1_beta;
 
   return out;
+}
+
+Butterlp butterlp_init(double sr) {
+  Butterlp blp = {0};
+  blp.freq = 400;
+  blp.pidsr = PI / sr;
+  return blp;
+}
+
+double butterlp_tick(Butterlp *p) {
+  if (p->freq != p->last_freq) {
+    double *a, c;
+    a = p->a;
+    p->last_freq = p->freq;
+    c = 1.0 / tan((double)(p->pidsr * p->last_freq));
+    a[1] = 1.0 / ( 1.0 + ROOT2 * c + c * c);
+    a[2] = a[1] + a[1];
+    a[3] = a[1];
+    a[4] = 2.0 * ( 1.0 - c*c) * a[1];
+    a[5] = ( 1.0 - ROOT2 * c + c * c) * a[1];
+  }
+
+  double* a = p->a;
+  double t, y;
+  t = p->in - a[4] * a[6] - a[5] * a[7];
+  y = t * a[1] + a[2] * a[6] + a[3] * a[7];
+  a[7] = a[6];
+  a[6] = t;
+  
+  return y;
+}
+
+FixedBLP8 fixedblp8_init(double sr, double freq) {
+  FixedBLP8 blp = {0};
+  blp.pidsr = PI / sr;
+
+  double c;
+
+  c = 1.0 / tan((double)(blp.pidsr * freq));
+  blp.a[1] = 1.0 / ( 1.0 + ROOT2 * c + c * c);
+  blp.a[2] = blp.a[1] + blp.a[1];
+  blp.a[3] = blp.a[1];
+  blp.a[4] = 2.0 * ( 1.0 - c*c) * blp.a[1];
+  blp.a[5] = ( 1.0 - ROOT2 * c + c * c) * blp.a[1];
+  return blp;
+}
+
+double fixedblp8_tick(FixedBLP8 *p) {
+  double* a = p->a;
+  double t, y;
+
+  /*
+  t = p->in - a[4] * a[6] - a[5] * a[7];
+  y = t * a[1] + a[2] * a[6] + a[3] * a[7];
+  a[7] = a[6];
+  a[6] = t;
+  */
+  y = p->in;
+
+  // 12 db
+  t = y - a[4] * a[6] - a[5] * a[7];
+  y = t * a[1] + a[2] * a[6] + a[3] * a[7];
+  a[7] = a[6];
+  a[6] = t;
+
+  // 24 db
+  t = y - a[4] * a[8] - a[5] * a[9];
+  y = t * a[1] + a[2] * a[8] + a[3] * a[9];
+  a[9] = a[8];
+  a[8] = t;
+
+  // 36 db
+  t = y - a[4] * a[10] - a[5] * a[11];
+  y = t * a[1] + a[2] * a[10] + a[3] * a[11];
+  a[11] = a[10];
+  a[10] = t;
+
+  // 48 db
+  t = y - a[4] * a[12] - a[5] * a[13];
+  y = t * a[1] + a[2] * a[12] + a[3] * a[13];
+  a[13] = a[12];
+  a[12] = t;
+
+  // 60 db
+  t = y - a[4] * a[14] - a[5] * a[15];
+  y = t * a[1] + a[2] * a[14] + a[3] * a[15];
+  a[15] = a[14];
+  a[14] = t;
+
+  // 72 db
+  t = y - a[4] * a[16] - a[5] * a[17];
+  y = t * a[1] + a[2] * a[16] + a[3] * a[17];
+  a[17] = a[16];
+  a[16] = t;
+
+  // 84 db
+  t = y - a[4] * a[18] - a[5] * a[19];
+  y = t * a[1] + a[2] * a[18] + a[3] * a[19];
+  a[19] = a[18];
+  a[18] = t;
+  
+  return y;
 }

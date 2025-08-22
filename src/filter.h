@@ -11,3 +11,22 @@ typedef struct {
 
 K35_LPF k35_lpf_init(double sr);
 double k35_lpf_tick(K35_LPF* p);
+
+typedef struct  {
+  double in, freq;
+  double last_freq;
+  double pidsr;
+  double a[8];
+} Butterlp;
+
+Butterlp butterlp_init(double sr);
+double butterlp_tick(Butterlp* p);
+
+typedef struct  {
+  double in;
+  double pidsr;
+  double a[20];
+} FixedBLP8;
+
+FixedBLP8 fixedblp8_init(double sr, double freq);
+double fixedblp8_tick(FixedBLP8* p);

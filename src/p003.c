@@ -26,6 +26,8 @@ static double cross_pulse_duty_strength;
 static double duty;
 static double pulse2vol;
 static double stereo_spread;
+static double filter_freq;
+static double filter_q;
 static void update_cc_params(int cc_num, double cc_val) {
   if (cc_num == 1) {
     freq_deviation = pow(cc_val, 2) * 10;
@@ -37,6 +39,10 @@ static void update_cc_params(int cc_num, double cc_val) {
     pulse2vol = cc_val;
   } else if (cc_num == 5) {
     stereo_spread = cc_val;
+  } else if (cc_num == 6) {
+    filter_freq = pow(cc_val, 2) * 10000 + 40;
+  } else if (cc_num == 7) {
+    filter_q = cc_val + 1 * 9;
   }
 }
 
@@ -47,6 +53,8 @@ typedef struct {
   Pulse pulse2;
   K35_LPF lpfL;
   K35_LPF lpfR;
+  FixedBLP8 blpL;
+  FixedBLP8 blpR;
   TabPlay rel_env;
   bool active;
   bool release;
@@ -66,9 +74,18 @@ static StereoOut voice_tick(Voice* self) {
     self->lpfL.in = pulse1;
     self->lpfR.in = pulse2 * pulse2vol;
     
+    self->lpfL.freq = filter_freq;
+    self->lpfR.freq = filter_freq;
+    self->lpfL.q = filter_q;
+    self->lpfR.q = filter_q;
     double lpfL = k35_lpf_tick(&self->lpfL);
     double lpfR = k35_lpf_tick(&self->lpfR);
 
+    self->blpL.in = lpfL;
+    self->blpR.in = lpfR;
+    lpfL = fixedblp8_tick(&self->blpL);
+    lpfR = fixedblp8_tick(&self->blpR);
+    
     if (i == OS-1) {
       so.l = lpfL;
       so.r = lpfR;
@@ -92,13 +109,11 @@ static Voice voice_init(int pitch) {
   v.pulse2 = pulse_init(SR*OS);
   v.lpfL = k35_lpf_init(SR*OS);
   v.lpfR = k35_lpf_init(SR*OS);
+  v.blpL = fixedblp8_init(SR*OS, 12000);
+  v.blpR = fixedblp8_init(SR*OS, 12000);
   v.rel_env = tabplay_init(SR);
 
   v.freq = midipitch2freq(pitch);
-  //v.pulse1.freq = midipitch2freq(pitch) + ccs[1] * 2;
-  //v.pulse2.freq = midipitch2freq(pitch) - ccs[1] * 2;
-  v.lpfL.freq = 1000;
-  v.lpfR.freq = 1000;
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
 
