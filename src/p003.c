@@ -78,8 +78,6 @@ static Voice voice_init(int pitch) {
   return v;
 }
 
-static int foo = 0;
-
 static StereoOut voice_tick(Voice* self) {
   StereoOut so = { 0 };
 
@@ -140,7 +138,6 @@ static void release_voice_at_pitch(PLG* self, int pitch) {
 }
 
 StereoOut PLG_TICK(PLG* self) {
-  foo++;
   StereoOut out = { 0 };
   for (int i = 0; i < OS; i++) { // oversampling block
     for (int i = 0; i < 16; i++) {
