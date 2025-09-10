@@ -207,3 +207,32 @@ double fixedblp8_tick(FixedBLP8 *p) {
   
   return y;
 }
+
+IIRTest iirtest_init() {
+  IIRTest iir = {0};
+  iir.inCo = 1;
+  return iir;
+}
+
+double iirtest_tick(IIRTest* p) {
+  double out = p->inCo * p->in
+    + p->inMin1Co * p->inMin1
+    + p->inMin2Co * p->inMin2
+    + p->inMin3Co * p->inMin3
+    + p->inMin4Co * p->inMin4
+    + p->outMin1Co * p->outMin1
+    + p->outMin2Co * p->outMin2
+    + p->outMin3Co * p->outMin3
+    + p->outMin4Co * p->outMin4;
+
+  p->outMin4 = p->outMin3;
+  p->outMin3 = p->outMin2;
+  p->outMin2 = p->outMin1;
+  p->outMin1 = out;
+  p->inMin4 = p->inMin3;
+  p->inMin3 = p->inMin2;
+  p->inMin2 = p->inMin1;
+  p->inMin1 = p->in;
+
+  return out;
+}

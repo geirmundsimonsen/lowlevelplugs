@@ -6,7 +6,7 @@
 void write_log(const char* msg) {
   FILE* f = fopen("/p1/code/c/lowlevelplugs/plugin.log", "a");
   if (f) {
-    time_t t = time(nullptr);
+    time_t t = time(0);
     fprintf(f, "[%ld] %s\n", t, msg);
     fclose(f);
   }
@@ -15,8 +15,17 @@ void write_log(const char* msg) {
 void write_log_double(double d) {
   FILE* f = fopen("/p1/code/c/lowlevelplugs/plugin.log", "a");
   if (f) {
-    time_t t = time(nullptr);
+    time_t t = time(0);
     fprintf(f, "[%ld] %f\n", t, d);
+    fclose(f);
+  }
+}
+
+void write_log_int(int i) {
+  FILE* f = fopen("/p1/code/c/lowlevelplugs/plugin.log", "a");
+  if (f) {
+    time_t t = time(0);
+    fprintf(f, "[%ld] %d\n", t, i);
     fclose(f);
   }
 }

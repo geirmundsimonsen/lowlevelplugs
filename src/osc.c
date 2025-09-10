@@ -28,6 +28,7 @@ Pulse pulse_init(double sr) {
   Pulse pulse = {0};
   pulse.inv_sr = 1.0 / sr;
   pulse.duty = 0.5;
+  pulse.tick = pulse_tick;
   return pulse;
 }
 

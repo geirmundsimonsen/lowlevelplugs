@@ -10,11 +10,12 @@ typedef struct {
 Osc osc_init(double sr);
 double osc_tick(Osc* osc);
 
-typedef struct {
+typedef struct Pulse {
   double phase;
   double freq;
   double inv_sr;
   double duty;
+  double (*tick)(struct Pulse* p);
 } Pulse;
 
 Pulse pulse_init(double sr);

@@ -22,7 +22,7 @@ typedef struct  {
 Butterlp butterlp_init(double sr);
 double butterlp_tick(Butterlp* p);
 
-typedef struct  {
+typedef struct {
   double in;
   double pidsr;
   double a[20];
@@ -30,3 +30,28 @@ typedef struct  {
 
 FixedBLP8 fixedblp8_init(double sr, double freq);
 double fixedblp8_tick(FixedBLP8* p);
+
+typedef struct {
+  double inCo;
+  double inMin1Co;
+  double inMin2Co;
+  double inMin3Co;
+  double inMin4Co;
+  double outMin1Co;
+  double outMin2Co;
+  double outMin3Co;
+  double outMin4Co;
+
+  double in;
+  double inMin1;
+  double inMin2;
+  double inMin3;
+  double inMin4;
+  double outMin1;
+  double outMin2;
+  double outMin3;
+  double outMin4;
+} IIRTest;
+
+IIRTest iirtest_init();
+double iirtest_tick(IIRTest* p);

@@ -34,6 +34,9 @@ desc "p000"; timer $CXX -c src/p000.c -o dist/p000.o $CXXFLAGS
 desc "p001"; timer $CXX -c src/p001.c -o dist/p001.o $CXXFLAGS
 desc "p002"; timer $CXX -c src/p002.c -o dist/p002.o $CXXFLAGS
 desc "p003"; timer $CXX -c src/p003.c -o dist/p003.o $CXXFLAGS
+desc "p004-dsp"; timer faust -lang c -double -os -O dist -o p004-faust.c src/p004.dsp
+desc "p004-rewrite"; timer $(cargo run --manifest-path rewrite_c_faust/Cargo.toml -- p004-faust.c dist src)
+desc "p004"; timer $CXX -c src/p004.c -o dist/p004.o $CXXFLAGS
 desc "main"; timer $CXX -shared src/main.c $CXXFLAGS -Wl,--no-undefined -o dist/lowlevelplugs.clap -lm \
   dist/log.o \
   dist/factory.o \
@@ -46,6 +49,7 @@ desc "main"; timer $CXX -shared src/main.c $CXXFLAGS -Wl,--no-undefined -o dist/
   dist/p001.o \
   dist/p002.o \
   dist/p003.o \
+  dist/p004.o \
   #raylib/src/libraylib.a \
   #/usr/lib/libcsound64.so \
   #-ljack \
