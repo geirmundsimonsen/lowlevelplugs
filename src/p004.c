@@ -18,6 +18,8 @@
 #define SR 48000
 #define OS 16
 
+
+
 typedef struct {
   double l;
   double r;
@@ -357,13 +359,9 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
 
 static const void *plugin_get_extension(const struct clap_plugin *plugin, const char *id) {
   write_log("plugin_get_extension");
-  //if (!strcmp(id, CLAP_EXT_LATENCY))
-  //   return &s_my_plug_latency;
   if (!strcmp(id, CLAP_EXT_AUDIO_PORTS)) { return &plugin_audio_ports; }
   if (!strcmp(id, CLAP_EXT_NOTE_PORTS)) { return &plugin_note_ports; }
   if (!strcmp(id, CLAP_EXT_PARAMS)) { return &plugin_params; }
-  //if (!strcmp(id, CLAP_EXT_STATE))
-  //   return &s_my_plug_state;
   return NULL;
 }
 
