@@ -13,14 +13,14 @@ typedef struct plugin {
   clap_plugin_t*(*create)(const clap_plugin_descriptor_t*, const clap_host_t* host);
 } plugin_t;
 
-extern clap_plugin_t* p000_create(const clap_plugin_descriptor_t*, const clap_host_t* host);extern clap_plugin_t* p005_create(const clap_plugin_descriptor_t*, const clap_host_t* host);
+extern clap_plugin_t* p000_create(const clap_plugin_descriptor_t*, const clap_host_t* host);extern clap_plugin_t* p001_create(const clap_plugin_descriptor_t*, const clap_host_t* host);extern clap_plugin_t* p005_create(const clap_plugin_descriptor_t*, const clap_host_t* host);
 
 plugin_t plugins[] = {
-{ { CLAP_VERSION_INIT, "com.nevrofon.p000", "p000 - Sine Test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p000_create },{ { CLAP_VERSION_INIT, "com.nevrofon.p005", "p005 - test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p005_create },
+{ { CLAP_VERSION_INIT, "com.nevrofon.p000", "p000 - Sine test -18db", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p000_create },{ { CLAP_VERSION_INIT, "com.nevrofon.p001", "p001 - Noise test -18db", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p001_create },{ { CLAP_VERSION_INIT, "com.nevrofon.p005", "p005 - test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p005_create },
 };
 
 int get_plugin_count() {
-  return 2;
+  return 3;
 }
 
 const clap_plugin_descriptor_t* get_plugindesc_by_index(int index) {
@@ -30,7 +30,7 @@ const clap_plugin_descriptor_t* get_plugindesc_by_index(int index) {
 clap_plugin_t* create_plugin(const char* plugin_id, const clap_host_t* host) {
   const plugin_t* p = NULL;
 
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 3; i++) {
     if (strcmp(plugin_id, plugins[i].desc.id) == 0) {
       p = &plugins[i];
       break;

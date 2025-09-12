@@ -10,6 +10,7 @@ mod faust;
 mod cgen;
 mod compile;
 mod p000;
+mod p001;
 mod p005;
 
 fn main() {
@@ -24,11 +25,13 @@ fn run() -> Result<(), error::AppError> {
   let mut plugins = vec![];
 
   let p000 = p000::model(); plugins.push(&p000);
+  let p001 = p001::model(); plugins.push(&p001);
   let p005 = p005::model(); plugins.push(&p005);
   
   let start = Instant::now();
   write_plugindesc_c_file(&g, &plugins)?;
   p000.generate_c_file(&g)?;
+  p001.generate_c_file(&g)?;
   p005.generate_c_file(&g)?;
   let elapsed = start.elapsed();
   println!("generating files: {} ms", elapsed.as_millis());
@@ -43,6 +46,7 @@ fn run() -> Result<(), error::AppError> {
   compile_c_file(&g, "filter")?;
   compile_c_file(&g, "util")?;
   p000.compile_c_file(&g)?;
+  p001.compile_c_file(&g)?;
   p005.compile_c_file(&g)?;
   compile_binary_and_copy(&g, &plugins)?;
 

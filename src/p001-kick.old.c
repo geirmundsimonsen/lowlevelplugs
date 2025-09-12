@@ -6,37 +6,26 @@
 #include "log.h"
 #include "util.h"
 #include "osc.h"
-#include "filter.h"
 #include "tables.h"
 
-#define PLG P002
-#define PLG_TICK P002_tick
-#define PLG_CREATE create_P002
+#define PLG P001
+#define PLG_TICK P001_tick
+#define PLG_CREATE create_P001
 #define SR 48000
 
 typedef struct {
   int pitch;
-  TabPlay rel_env;
-  Osc osc;
+  double freq;
   TabPlay f_env;
-  K35_LPF lpf;
+  Osc osc;
+  TabPlay rel_env;
   bool active;
   bool release;
 } Voice;
 
 static double voice_tick(Voice* self) {
+  self->osc.freq = self->freq + tabplay_tick(&self->f_env) * self->freq * 5;
   double out = osc_tick(&self->osc);
-  if (out > 0.40) {
-    out = 0.40;
-  } else if (out < -0.40) {
-    out = -0.40;
-  }
-
-  self->lpf.in = out;
-  self->lpf.q = 7;
-  self->lpf.freq = 200 + tabplay_tick(&self->f_env) * 800;
-  
-  out = k35_lpf_tick(&self->lpf);
   if (self->release) {
     auto rel = tabplay_tick(&self->rel_env);
     out *= rel;
@@ -47,29 +36,27 @@ static double voice_tick(Voice* self) {
 
 static Voice voice_init(int pitch) {
   Voice v = {0};
-  v.lpf = k35_lpf_init(SR);
   v.osc = osc_init(SR);
   v.f_env = tabplay_init(SR);
   v.rel_env = tabplay_init(SR);
-  v.osc.freq = midipitch2freq(pitch);
-
+  v.pitch = pitch;
+  v.freq = midipitch2freq(pitch);
   v.osc.wt = wt_sin;
-  v.f_env.s = 2;
-  v.f_env.wt = et_fall_exp_2;
+  v.f_env.s = 0.2;
+  v.f_env.wt = et_fall_exp_3;
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
-
-  v.pitch = pitch;
   v.active = true;
   return v;
 }
 
+#define N_VOICES 16
 typedef struct {
-  Voice voices[16];
+  Voice voices[N_VOICES];
 } PLG;
 
 static void add_voice_at_pitch(PLG* self, int pitch) {
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < N_VOICES; i++) {
     if (!self->voices[i].active) {
       self->voices[i] = voice_init(pitch);
       break;
@@ -78,7 +65,7 @@ static void add_voice_at_pitch(PLG* self, int pitch) {
 }
 
 static void release_voice_at_pitch(PLG* self, int pitch) {
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < N_VOICES; i++) {
     if (self->voices[i].active && self->voices[i].pitch == pitch) {
       self->voices[i].release = true;
       break;
@@ -88,7 +75,7 @@ static void release_voice_at_pitch(PLG* self, int pitch) {
 
 double PLG_TICK(PLG* self) {
   auto out = 0.0;
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < N_VOICES; i++) {
     if (self->voices[i].active) {
       out += voice_tick(&self->voices[i]);
     }
@@ -182,6 +169,7 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
         break;
       }
 
+      // hdr->time - sample index within buffer
       if (hdr->type == 0) { // NOTE ON
         const clap_event_note_t *ev = (const clap_event_note_t *)hdr;
         add_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
