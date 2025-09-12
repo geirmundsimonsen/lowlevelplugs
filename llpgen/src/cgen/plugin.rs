@@ -1,0 +1,382 @@
+use crate::{global::Global, pluginmodel::PluginModel};
+
+fn get_param_info(model: &PluginModel) -> String {
+  let mut p = String::new();
+
+  let mut idx = 0;
+  for param in &model.params {
+    p += &format!(r#"    case {idx}: {{
+      param_info->id = {id};
+      param_info->min_value = {min};
+      param_info->max_value = {max};
+      param_info->default_value = {default};
+      snprintf(param_info->name, sizeof(param_info->name), "%s", "{name}");
+    }} break;
+"#, id = param.id, min = param.min, max = param.max, default = param.default, name = param.name);
+
+    idx += 1;
+  }
+
+  p
+}
+
+fn get_param_decl_for_plugin(model: &PluginModel) -> String {
+  let mut p = String::new();
+
+  for param in &model.params {
+    let val = param.transfer_fn.clone().unwrap_or("val".to_string());
+    
+    p += &format!("  double {name};\n", name = param.name);
+  }
+
+  p
+}
+
+fn get_plugin_params_to_faust(model: &PluginModel) -> String {
+  let mut p = String::new();
+
+  for param in &model.params {
+    let val = param.transfer_fn.clone().unwrap_or("val".to_string());
+    
+    p += &format!("  v->faust.{name} = p->{name};\n", name = param.name);
+  }
+
+  p
+}
+
+fn get_update_params(model: &PluginModel) -> String {
+  let mut p = String::new();
+
+  for param in &model.params {
+    let val = param.transfer_fn.clone().unwrap_or("val".to_string());
+    
+    p += &format!(r#"          case {id}: {{     
+            p->{name} = {val};
+          }} break;
+"#, id = param.id, name = param.name);
+  }
+
+  p
+}
+
+pub fn create_c_file(g: &Global, model: &PluginModel, faust: &String) -> String {
+  let c_file = format!(r#"
+#include "../clap/include/clap/clap.h"
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include "log.h"
+#include "util.h"
+#include "osc.h"
+#include "filter.h"
+#include "tables.h"
+
+{faust}
+
+typedef struct {{
+  double l;
+  double r;
+}} StereoOut;
+
+typedef struct {{
+  int pitch;
+  mydsp faust;
+  TabPlay rel_env;
+  bool active;
+  bool release;
+}} Voice;
+
+static Voice voice_init(int pitch) {{
+  Voice v = {{0}};
+  v.rel_env = tabplay_init({final_sr});
+  initmydsp(&v.faust, {final_sr});
+  v.faust.freq = midipitch2freq(pitch);
+  v.rel_env.s = 0.05;
+  v.rel_env.wt = et_fall_lin;
+
+  v.pitch = pitch;
+  v.active = true;
+  return v;
+}}
+
+typedef struct {{
+  Voice voices[16];
+{param_decl_for_plugin}
+  FixedBLP8 fixed_lpf_l;
+  FixedBLP8 fixed_lpf_r;
+}} {plg};
+
+static StereoOut voice_tick(Voice* v, {plg}* p) {{
+  StereoOut so = {{ 0 }};
+  
+{plugin_params_to_faust}
+  framemydsp(&v->faust, 0, &so.l);
+  so.r = so.l;
+
+  if (v->release) {{
+    auto rel = tabplay_tick(&v->rel_env);
+    so.l *= rel;
+    so.r *= rel;
+    if (v->rel_env.phase == 1) {{ v->active = false; }}
+  }}
+  return so;
+}}
+
+static void add_voice_at_pitch({plg}* p, int pitch) {{
+  for (int i = 0; i < 16; i++) {{
+    if (!p->voices[i].active) {{
+      p->voices[i] = voice_init(pitch);
+      break;
+    }}
+  }}
+}}
+
+static void release_voice_at_pitch({plg}* p, int pitch) {{
+  for (int i = 0; i < 16; i++) {{
+    if (p->voices[i].active && p->voices[i].pitch == pitch) {{
+      p->voices[i].release = true;
+      break;
+    }}
+  }}
+}}
+
+StereoOut {plg_tick}({plg}* p) {{
+  StereoOut out = {{ 0 }};
+  for (int i = 0; i < {oversample}; i++) {{ // oversampling block
+    out.l = 0;
+    out.r = 0;
+    for (int v = 0; v < 16; v++) {{
+      if (p->voices[v].active) {{
+        StereoOut voiceOut;
+        voiceOut = voice_tick(&p->voices[v], p);
+        
+        out.l += voiceOut.l;
+        out.r += voiceOut.r;
+      }}
+    }}
+    p->fixed_lpf_l.in = out.l;
+    p->fixed_lpf_r.in = out.r;
+    out.l = fixedblp8_tick(&p->fixed_lpf_l);
+    out.r = fixedblp8_tick(&p->fixed_lpf_r);
+  }}
+  out.l *= 0.25;
+  out.r *= 0.25;
+  return out;
+}}
+
+static uint32_t plugin_audio_ports_count(const clap_plugin_t* plugin, bool is_input) {{
+  return 1;
+}}
+
+static bool plugin_audio_ports_get(const clap_plugin_t* plugin, uint32_t index, bool is_input, clap_audio_port_info_t* info) {{
+  if (index > 0) {{ return false; }}
+  info->id = 0;
+  snprintf(info->name, sizeof(info->name), "%s", "Main");
+  info->channel_count = 2;
+  info->flags = CLAP_AUDIO_PORT_IS_MAIN;
+  info->port_type = CLAP_PORT_STEREO;
+  info->in_place_pair = CLAP_INVALID_ID;
+  return true;
+}}
+
+static const clap_plugin_audio_ports_t plugin_audio_ports = {{
+  plugin_audio_ports_count,
+  plugin_audio_ports_get,
+}};
+
+static uint32_t plugin_note_ports_count(const clap_plugin_t* plugin, bool is_input) {{
+  return 1;
+}}
+
+static bool plugin_note_ports_get(const clap_plugin_t* plugin, uint32_t index, bool is_input, clap_note_port_info_t* info) {{
+  if (index > 0) {{ return false; }}
+  info->id = 0;
+  snprintf(info->name, sizeof(info->name), "%s", "Note Port 1");
+  info->supported_dialects = CLAP_NOTE_DIALECT_CLAP | CLAP_NOTE_DIALECT_MIDI | CLAP_NOTE_DIALECT_MIDI_MPE | CLAP_NOTE_DIALECT_MIDI2;
+  info->preferred_dialect = CLAP_NOTE_DIALECT_CLAP;
+  return true;
+}}
+
+static const clap_plugin_note_ports_t plugin_note_ports = {{
+  .count = plugin_note_ports_count,
+  .get = plugin_note_ports_get,
+}};
+
+static uint32_t plugin_params_count(const clap_plugin_t* plugin) {{ return {param_count}; }}
+
+static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_index, clap_param_info_t* param_info) {{
+  switch (param_index) {{
+{param_info}
+  }}
+
+  return true;
+}}
+
+static bool plugin_params_get_value(const clap_plugin_t* plugin, clap_id param_id, double* out_value) {{
+  write_log("plugin_params_get_value");
+  return true;
+}}
+
+static bool plugin_params_value_to_text(const clap_plugin_t* plugin, clap_id param_id, double value, char* out_buffer, uint32_t out_buffer_capacity) {{
+  write_log("plugin_params_value_to_text");
+  return true;
+}}
+
+static bool plugin_params_text_to_value(const clap_plugin_t* plugin, clap_id param_id, const char* param_value_text, double* out_value) {{
+  write_log("plugin_params_text_to_value");
+  return true;
+}}
+
+static void plugin_params_flush(const clap_plugin_t* plugin, const clap_input_events_t* in, const clap_output_events_t* out) {{
+  write_log("plugin_params_flush");
+}}
+
+static const clap_plugin_params_t plugin_params = {{
+  .count = plugin_params_count,
+  .flush = plugin_params_flush,
+  .get_info = plugin_params_get_info,
+  .get_value = plugin_params_get_value,
+  .text_to_value = plugin_params_text_to_value,
+  .value_to_text = plugin_params_value_to_text,
+}};
+
+static bool plugin_init(const struct clap_plugin* plugin) {{
+  write_log("plugin_init");
+  {plg}* data = plugin->plugin_data;
+  data->fixed_lpf_l = fixedblp8_init({final_sr}, 13000);
+  data->fixed_lpf_r = fixedblp8_init({final_sr}, 13000);
+  return true;
+}}
+
+static void plugin_destroy(const struct clap_plugin* plugin) {{
+  write_log("plugin_destroy");
+  free(({plg}*)plugin->plugin_data);
+  free((struct clap_plugin*)plugin);
+}}
+
+static bool plugin_activate(const struct clap_plugin* plugin, double sample_rate, uint32_t min_frames_count, uint32_t max_frames_count) {{
+  write_log("plugin_activate");
+  return true;
+}}
+
+static void plugin_deactivate(const struct clap_plugin* plugin) {{
+  write_log("plugin_deactivate");
+}}
+
+static bool plugin_start_processing(const struct clap_plugin* plugin) {{
+  write_log("plugin_start_processing");
+  return true;
+}}
+
+static void plugin_stop_processing(const struct clap_plugin* plugin) {{
+  write_log("plugin_stop_processing");
+}}
+
+static void plugin_reset(const struct clap_plugin* plugin) {{
+  write_log("plugin_reset");
+}}
+
+static clap_process_status plugin_process(const struct clap_plugin* plugin, const clap_process_t* process) {{
+  const uint32_t nframes = process->frames_count;
+  const uint32_t num_ev = process->in_events->size(process->in_events);
+  uint32_t       ev_index = 0;
+  uint32_t       next_ev_frame = num_ev > 0 ? 0 : nframes;
+
+  for (uint32_t i = 0; i < nframes;) {{
+    while (ev_index < num_ev && next_ev_frame == i) {{
+      const clap_event_header_t *hdr = process->in_events->get(process->in_events, ev_index);
+      if (hdr->time != i) {{
+        next_ev_frame = hdr->time;
+        break;
+      }} 
+      
+      if (hdr->type == CLAP_EVENT_NOTE_ON) {{
+        const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
+        add_voice_at_pitch(({plg}*)plugin->plugin_data, ev->key);
+      }} else if (hdr->type == CLAP_EVENT_NOTE_OFF) {{
+        const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
+        release_voice_at_pitch(({plg}*)plugin->plugin_data, ev->key);
+      }} else if (hdr->type == CLAP_EVENT_PARAM_VALUE) {{
+        const clap_event_param_value_t *ev = (const clap_event_param_value_t*)hdr;
+        {plg}* p = plugin->plugin_data;
+        double val = ev->value;
+        switch (ev->param_id) {{
+{update_params}
+        }}
+      }} else if (hdr->type == CLAP_EVENT_PARAM_MOD) {{
+        const clap_event_param_mod_t *ev = (const clap_event_param_mod_t*)hdr;
+      }}
+
+      ev_index++;
+      if (ev_index == num_ev) {{
+        next_ev_frame = nframes;
+        break;
+      }}
+    }}
+
+    for (; i < next_ev_frame; ++i) {{
+      float L = process->audio_inputs[0].data32[0][i];
+      float R = process->audio_inputs[0].data32[1][i];
+
+      StereoOut out = {plg_tick}(({plg}*)plugin->plugin_data);
+      
+      L += out.l;
+      R += out.r;
+
+      process->audio_outputs[0].data32[0][i] = L;
+      process->audio_outputs[0].data32[1][i] = R;
+    }}
+  }}
+
+  return CLAP_PROCESS_CONTINUE;
+}}
+
+static const void *plugin_get_extension(const struct clap_plugin *plugin, const char *id) {{
+  write_log("plugin_get_extension");
+  if (!strcmp(id, CLAP_EXT_AUDIO_PORTS)) {{ return &plugin_audio_ports; }}
+  if (!strcmp(id, CLAP_EXT_NOTE_PORTS)) {{ return &plugin_note_ports; }}
+  if (!strcmp(id, CLAP_EXT_PARAMS)) {{ return &plugin_params; }}
+  return NULL;
+}}
+
+static void plugin_on_main_thread(const struct clap_plugin *plugin) {{
+  write_log("plugin_on_main_thread");
+}}
+
+const clap_plugin_t* {plg_create}(const clap_plugin_descriptor_t* plugindesc) {{
+  clap_plugin_t* plugin = (clap_plugin_t*)calloc(1, sizeof(*plugin));
+  plugin->desc = plugindesc;
+  plugin->init = plugin_init;
+  plugin->destroy = plugin_destroy;
+  plugin->activate = plugin_activate;
+  plugin->deactivate = plugin_deactivate;
+  plugin->start_processing = plugin_start_processing;
+  plugin->stop_processing = plugin_stop_processing;
+  plugin->reset = plugin_reset;
+  plugin->process = plugin_process;
+  plugin->get_extension = plugin_get_extension;
+  plugin->on_main_thread = plugin_on_main_thread;
+  {plg}* data = calloc(1, sizeof(*data));
+  plugin->plugin_data = data;
+
+  return plugin;
+}}
+
+"#,
+  final_sr = g.sample_rate * model.oversample,
+  oversample = model.oversample,
+  plg_tick = model.id.to_string() + "_tick",
+  plg_create = model.id.to_string() + "_create",
+  plg = model.id.to_string(),
+  param_count = model.params.len(),
+  param_info = get_param_info(model),
+  param_decl_for_plugin = get_param_decl_for_plugin(model),
+  update_params = get_update_params(model),
+  plugin_params_to_faust = get_plugin_params_to_faust(model)
+  );
+
+  c_file
+}
+

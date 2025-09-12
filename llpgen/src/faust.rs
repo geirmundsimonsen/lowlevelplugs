@@ -1,12 +1,24 @@
+use crate::pluginmodel::PluginModel;
 
-fn main() {
-  let mut args = std::env::args();
-  args.next();
-  let c_filename = args.next().unwrap();
-  let src_dir = args.next().unwrap();
-  let out_dir = args.next().unwrap();
-  let mut c_file = String::from_utf8(std::fs::read(src_dir + "/" + &c_filename).unwrap()).unwrap();
+pub fn add_imports_and_params(model: &PluginModel) -> String {
+  let faust = model.faust_source.to_string();
+  
+  let imports = r#"
+import("stdfaust.lib");
+"#;
 
+  let mut params = "".to_string();
+
+  params += "freq = hslider(\"freq\", 0, 0, 0, 0);\n";
+
+  for param in &model.params {
+    params += &format!("{} = hslider(\"{}\", 0, 0, 0, 0);\n", param.name, param.name);
+  }
+
+  format!("{}{}{}", imports, params, faust)
+}
+
+pub fn rewrite(mut c_file: String) -> String {
   let mut start_idx = 0;
   let mut add_horiz_vec: Vec<String> = Vec::new();
 
@@ -70,5 +82,14 @@ fn main() {
   c_file = c_file.replace("RESTRICT", "__restrict__");
   c_file = c_file.replace("FAUSTFLOAT", "double");
 
-  std::fs::write(out_dir + "/" + &c_filename, c_file).unwrap();
+  // Prettifying
+
+  let idx = c_file.find("typedef struct").unwrap();
+  c_file = c_file[idx..].to_string();
+
+  c_file = c_file.replace("\t", "  ");
+  c_file = c_file.replace("\n\n\n", "\n\n");
+  c_file = c_file.replace("\n\n\n", "\n\n");
+
+  c_file
 }

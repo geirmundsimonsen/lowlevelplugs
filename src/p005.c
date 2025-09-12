@@ -1,3 +1,4 @@
+
 #include "../clap/include/clap/clap.h"
 #include <math.h>
 #include <stdio.h>
@@ -10,13 +11,158 @@
 #include "filter.h"
 #include "tables.h"
 
-#include "p004-faust.c"
+typedef struct {
+  int iVec0[2];
+  int fSampleRate;
+  double fConst0;
+  double fConst1;
+  double fConst2;
+  double lpf_freq;
+  double lpf_q;
+  double freq;
+  double fConst3;
+  double fRec5[2];
+  double fRec1[2];
+  double fRec2[2];
+  double fRec3[2];
+  double fRec4[2];
+  double fConst4;
+  double fRec0[2];
+} mydsp;
 
-#define PLG P004
-#define PLG_TICK P004_tick
-#define PLG_CREATE create_P004
-#define SR 48000
-#define OS 16
+mydsp* newmydsp() { 
+  mydsp* dsp = (mydsp*)calloc(1, sizeof(mydsp));
+  return dsp;
+}
+
+void deletemydsp(mydsp* dsp) { 
+  free(dsp);
+}
+
+int getSampleRatemydsp(mydsp* __restrict__ dsp) {
+  return dsp->fSampleRate;
+}
+
+int getNumInputsmydsp(mydsp* __restrict__ dsp) {
+  return 0;
+}
+int getNumOutputsmydsp(mydsp* __restrict__ dsp) {
+  return 1;
+}
+
+void classInitmydsp(int sample_rate) {
+}
+
+void instanceResetUserInterfacemydsp(mydsp* dsp) {
+  dsp->lpf_freq = (double)(0.0);
+  dsp->lpf_q = (double)(0.0);
+  dsp->freq = (double)(0.0);
+}
+
+void instanceClearmydsp(mydsp* dsp) {
+  
+  {
+    int l0;
+    for (l0 = 0; l0 < 2; l0 = l0 + 1) {
+      dsp->iVec0[l0] = 0;
+    }
+  }
+  
+  {
+    int l1;
+    for (l1 = 0; l1 < 2; l1 = l1 + 1) {
+      dsp->fRec5[l1] = 0.0;
+    }
+  }
+  
+  {
+    int l2;
+    for (l2 = 0; l2 < 2; l2 = l2 + 1) {
+      dsp->fRec1[l2] = 0.0;
+    }
+  }
+  
+  {
+    int l3;
+    for (l3 = 0; l3 < 2; l3 = l3 + 1) {
+      dsp->fRec2[l3] = 0.0;
+    }
+  }
+  
+  {
+    int l4;
+    for (l4 = 0; l4 < 2; l4 = l4 + 1) {
+      dsp->fRec3[l4] = 0.0;
+    }
+  }
+  
+  {
+    int l5;
+    for (l5 = 0; l5 < 2; l5 = l5 + 1) {
+      dsp->fRec4[l5] = 0.0;
+    }
+  }
+  
+  {
+    int l6;
+    for (l6 = 0; l6 < 2; l6 = l6 + 1) {
+      dsp->fRec0[l6] = 0.0;
+    }
+  }
+}
+
+void instanceConstantsmydsp(mydsp* dsp, int sample_rate) {
+  dsp->fSampleRate = sample_rate;
+  dsp->fConst0 = (double)(dsp->fSampleRate);
+  dsp->fConst1 = 6.283185307179586 / dsp->fConst0;
+  dsp->fConst2 = 1.0 - dsp->fConst1;
+  dsp->fConst3 = 1.0 / dsp->fConst0;
+  dsp->fConst4 = 1.0 / (dsp->fConst1 + 1.0);
+}
+  
+void instanceInitmydsp(mydsp* dsp, int sample_rate) {
+  instanceConstantsmydsp(dsp, sample_rate);
+  instanceResetUserInterfacemydsp(dsp);
+  instanceClearmydsp(dsp);
+}
+
+void initmydsp(mydsp* dsp, int sample_rate) {
+  classInitmydsp(sample_rate);
+  instanceInitmydsp(dsp, sample_rate);
+}
+
+void framemydsp(mydsp* dsp, double* __restrict__ inputs, double* __restrict__ outputs) {
+  double fSlow0 = tan(dsp->fConst1 * pow(1e+01, 3.0 * (double)(dsp->lpf_freq) + 1.0));
+  double fSlow1 = fSlow0 + 1.0;
+  double fSlow2 = fSlow0 / fSlow1;
+  double fSlow3 = 1.0 - fSlow2;
+  double fSlow4 = (double)(dsp->lpf_q) + -0.7071067811865475;
+  double fSlow5 = 0.21521822675751856 * fSlow4 * fSlow3;
+  double fSlow6 = dsp->fConst3 * (double)(dsp->freq);
+  double fSlow7 = 1.0 / fSlow1;
+  double fSlow8 = 1.0 / (1.0 - 0.21521822675751856 * (fSlow0 * fSlow4 * fSlow3 / fSlow1));
+  double fSlow9 = 2.0 * fSlow2;
+  double fSlow10 = 0.21521822675751856 * fSlow4;
+  dsp->iVec0[0] = 1;
+  double fTemp0 = ((1 - dsp->iVec0[1]) ? 0.0 : fSlow6 + dsp->fRec5[1]);
+  dsp->fRec5[0] = fTemp0 - floor(fTemp0);
+  double fTemp1 = 0.5 * (2.0 * (double)(dsp->fRec5[0] <= 0.1) + -1.0) - dsp->fRec4[1];
+  double fTemp2 = fSlow8 * (dsp->fRec4[1] + fSlow7 * (fSlow0 * fTemp1 + fSlow5 * dsp->fRec1[1] - dsp->fRec3[1])) - dsp->fRec1[1];
+  dsp->fRec1[0] = dsp->fRec1[1] + fSlow9 * fTemp2;
+  double fTemp3 = dsp->fRec1[1] + fSlow2 * fTemp2;
+  dsp->fRec2[0] = fTemp3;
+  dsp->fRec3[0] = dsp->fRec3[1] + fSlow9 * (fSlow10 * fTemp3 - dsp->fRec3[1]);
+  dsp->fRec4[0] = dsp->fRec4[1] + fSlow9 * fTemp1;
+  dsp->fRec0[0] = dsp->fConst4 * (dsp->fRec2[0] - dsp->fRec2[1] + dsp->fConst2 * dsp->fRec0[1]);
+  outputs[0] = (double)(dsp->fRec0[0]);
+  dsp->iVec0[1] = dsp->iVec0[0];
+  dsp->fRec5[1] = dsp->fRec5[0];
+  dsp->fRec1[1] = dsp->fRec1[0];
+  dsp->fRec2[1] = dsp->fRec2[0];
+  dsp->fRec3[1] = dsp->fRec3[0];
+  dsp->fRec4[1] = dsp->fRec4[0];
+  dsp->fRec0[1] = dsp->fRec0[0];
+}
 
 
 
@@ -35,8 +181,8 @@ typedef struct {
 
 static Voice voice_init(int pitch) {
   Voice v = {0};
-  v.rel_env = tabplay_init(SR*OS);
-  initmydsp(&v.faust, SR*OS);
+  v.rel_env = tabplay_init(768000);
+  initmydsp(&v.faust, 768000);
   v.faust.freq = midipitch2freq(pitch);
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
@@ -48,24 +194,19 @@ static Voice voice_init(int pitch) {
 
 typedef struct {
   Voice voices[16];
+  double lpf_freq;
+  double lpf_q;
+
   FixedBLP8 fixed_lpf_l;
   FixedBLP8 fixed_lpf_r;
-  double cc1;
-  double cc2;
-  double cc3;
-  double cc4;
-  double cc5;
-  double cc6;
-  double cc7;
-  double cc8;
-  double param1;
-} PLG;
+} p005;
 
-static StereoOut voice_tick(Voice* v, PLG* p) {
+static StereoOut voice_tick(Voice* v, p005* p) {
   StereoOut so = { 0 };
   
-  v->faust.lpf_freq = p->param1;
-  v->faust.lpf_q = p->cc7;
+  v->faust.lpf_freq = p->lpf_freq;
+  v->faust.lpf_q = p->lpf_q;
+
   framemydsp(&v->faust, 0, &so.l);
   so.r = so.l;
 
@@ -78,33 +219,7 @@ static StereoOut voice_tick(Voice* v, PLG* p) {
   return so;
 }
 
-static void update_cc_params(PLG* p, int cc_num, double cc_val) {
-  if (cc_num == 1) {
-    p->cc1 = cc_val;
-  } else if (cc_num == 2) {
-    p->cc2 = cc_val;
-  } else if (cc_num == 3) {
-    p->cc3 = cc_val;
-  } else if (cc_num == 4) {
-    p->cc4 = cc_val;
-  } else if (cc_num == 5) {
-    p->cc5 = cc_val;
-  } else if (cc_num == 6) {
-    p->cc6 = pow(cc_val * 0.7 + 0.3, 2);
-  } else if (cc_num == 7) {
-    p->cc7 = cc_val * 9.3 + 0.707;
-  } else if (cc_num == 8) {
-    p->cc8 = cc_val;
-  }
-}
-
-static void update_params(PLG* p, clap_id param_id, double val) {
-  if (param_id == 1) {
-    p->param1 = val;
-  }
-}
-
-static void add_voice_at_pitch(PLG* p, int pitch) {
+static void add_voice_at_pitch(p005* p, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (!p->voices[i].active) {
       p->voices[i] = voice_init(pitch);
@@ -113,7 +228,7 @@ static void add_voice_at_pitch(PLG* p, int pitch) {
   }
 }
 
-static void release_voice_at_pitch(PLG* p, int pitch) {
+static void release_voice_at_pitch(p005* p, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (p->voices[i].active && p->voices[i].pitch == pitch) {
       p->voices[i].release = true;
@@ -122,9 +237,9 @@ static void release_voice_at_pitch(PLG* p, int pitch) {
   }
 }
 
-StereoOut PLG_TICK(PLG* p) {
+StereoOut p005_tick(p005* p) {
   StereoOut out = { 0 };
-  for (int i = 0; i < OS; i++) { // oversampling block
+  for (int i = 0; i < 16; i++) { // oversampling block
     out.l = 0;
     out.r = 0;
     for (int v = 0; v < 16; v++) {
@@ -138,15 +253,8 @@ StereoOut PLG_TICK(PLG* p) {
     }
     p->fixed_lpf_l.in = out.l;
     p->fixed_lpf_r.in = out.r;
-    //out.l = fixedblp8_tick(&p->fixed_lpf_l);
-    //out.r = fixedblp8_tick(&p->fixed_lpf_r);
-    // An attempt to be "smart" and avoid processing when not needed, but...
-    // DANGEROUS. The signal is - many times - below -80db for a single sample.
-    // Keeping this code as a comment, as something *not* to do.
-    // Result: Distortions of a strange and hard-to-debug kind.
-    /*if (fabs(out.l) < 0.0001 || fabs(out.r) < 0.0001) {
-      break; // cut the remaining oversampling passes if no sound
-    }*/
+    out.l = fixedblp8_tick(&p->fixed_lpf_l);
+    out.r = fixedblp8_tick(&p->fixed_lpf_r);
   }
   out.l *= 0.25;
   out.r *= 0.25;
@@ -191,64 +299,45 @@ static const clap_plugin_note_ports_t plugin_note_ports = {
   .get = plugin_note_ports_get,
 };
 
-static uint32_t plugin_params_count(const clap_plugin_t* plugin) {
-  write_log("plugin_params_count");
-  return 1;
-}
+static uint32_t plugin_params_count(const clap_plugin_t* plugin) { return 2; }
 
-// Copies the parameter's info to param_info.
-// Returns true on success.
-// [main-thread]
 static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_index, clap_param_info_t* param_info) {
-  write_log("plugin_params_get_info");
-  if (param_index == 0) {
-    write_log("plugin_params_get_info index 0");
-    param_info->default_value = 1;
-    param_info->id = param_index + 1;
-    param_info->max_value = 1;
-    param_info->min_value = 0;
-    //param_info->flags = CLAP_PARAM_IS_READONLY;
-    snprintf(param_info->name, sizeof(param_info->name), "%s", "Param 1");
+  switch (param_index) {
+    case 0: {
+      param_info->id = 1;
+      param_info->min_value = 0;
+      param_info->max_value = 1;
+      param_info->default_value = 0;
+      snprintf(param_info->name, sizeof(param_info->name), "%s", "lpf_freq");
+    } break;
+    case 1: {
+      param_info->id = 2;
+      param_info->min_value = 0;
+      param_info->max_value = 1;
+      param_info->default_value = 0;
+      snprintf(param_info->name, sizeof(param_info->name), "%s", "lpf_q");
+    } break;
+
   }
+
   return true;
 }
 
-// Writes the parameter's current value to out_value.
-// Returns true on success.
-// [main-thread]
 static bool plugin_params_get_value(const clap_plugin_t* plugin, clap_id param_id, double* out_value) {
   write_log("plugin_params_get_value");
   return true;
 }
 
-// Fills out_buffer with a null-terminated UTF-8 string that represents the parameter at the
-// given 'value' argument. eg: "2.3 kHz". The host should always use this to format parameter
-// values before displaying it to the user.
-// Returns true on success.
-// [main-thread]
 static bool plugin_params_value_to_text(const clap_plugin_t* plugin, clap_id param_id, double value, char* out_buffer, uint32_t out_buffer_capacity) {
   write_log("plugin_params_value_to_text");
   return true;
 }
 
-// Converts the null-terminated UTF-8 param_value_text into a double and writes it to out_value.
-// The host can use this to convert user input into a parameter value.
-// Returns true on success.
-// [main-thread]
 static bool plugin_params_text_to_value(const clap_plugin_t* plugin, clap_id param_id, const char* param_value_text, double* out_value) {
   write_log("plugin_params_text_to_value");
   return true;
 }
 
-// Flushes a set of parameter changes.
-// This method must not be called concurrently to clap_plugin->process().
-//
-// Note: if the plugin is processing, then the process() call will already achieve the
-// parameter update (bi-directional), so a call to flush isn't required, also be aware
-// that the plugin may use the sample offset in process(), while this information would be
-// lost within flush().
-//
-// [active ? audio-thread : main-thread]
 static void plugin_params_flush(const clap_plugin_t* plugin, const clap_input_events_t* in, const clap_output_events_t* out) {
   write_log("plugin_params_flush");
 }
@@ -264,18 +353,15 @@ static const clap_plugin_params_t plugin_params = {
 
 static bool plugin_init(const struct clap_plugin* plugin) {
   write_log("plugin_init");
-  PLG* data = plugin->plugin_data;
-  data->fixed_lpf_l = fixedblp8_init(SR*OS, 13000);
-  data->fixed_lpf_r = fixedblp8_init(SR*OS, 13000);
-  for (int i = 0; i < 128; i++) {
-    update_cc_params(data, i, 0);
-  }
+  p005* data = plugin->plugin_data;
+  data->fixed_lpf_l = fixedblp8_init(768000, 13000);
+  data->fixed_lpf_r = fixedblp8_init(768000, 13000);
   return true;
 }
 
 static void plugin_destroy(const struct clap_plugin* plugin) {
   write_log("plugin_destroy");
-  free((PLG*)plugin->plugin_data);
+  free((p005*)plugin->plugin_data);
   free((struct clap_plugin*)plugin);
 }
 
@@ -313,22 +399,27 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
       if (hdr->time != i) {
         next_ev_frame = hdr->time;
         break;
-      }
+      } 
       
       if (hdr->type == CLAP_EVENT_NOTE_ON) {
         const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
-        add_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
+        add_voice_at_pitch((p005*)plugin->plugin_data, ev->key);
       } else if (hdr->type == CLAP_EVENT_NOTE_OFF) {
         const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
-        release_voice_at_pitch((PLG*)plugin->plugin_data, ev->key);
-      } else if (hdr->type == CLAP_EVENT_MIDI) {
-        const clap_event_midi_t *ev = (const clap_event_midi_t*)hdr;
-        if (ev->data[0] == 176) { // cc ch. 1
-          update_cc_params((PLG*)plugin->plugin_data, ev->data[1], (double)ev->data[2] / 127.0); 
-        }
+        release_voice_at_pitch((p005*)plugin->plugin_data, ev->key);
       } else if (hdr->type == CLAP_EVENT_PARAM_VALUE) {
         const clap_event_param_value_t *ev = (const clap_event_param_value_t*)hdr;
-        update_params((PLG*)plugin->plugin_data, ev->param_id, ev->value);
+        p005* p = plugin->plugin_data;
+        double val = ev->value;
+        switch (ev->param_id) {
+          case 1: {     
+            p->lpf_freq = val;
+          } break;
+          case 2: {     
+            p->lpf_q = val * 9.3 + 0.707;
+          } break;
+
+        }
       } else if (hdr->type == CLAP_EVENT_PARAM_MOD) {
         const clap_event_param_mod_t *ev = (const clap_event_param_mod_t*)hdr;
       }
@@ -344,7 +435,7 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
       float L = process->audio_inputs[0].data32[0][i];
       float R = process->audio_inputs[0].data32[1][i];
 
-      StereoOut out = PLG_TICK((PLG*)plugin->plugin_data);
+      StereoOut out = p005_tick((p005*)plugin->plugin_data);
       
       L += out.l;
       R += out.r;
@@ -369,7 +460,7 @@ static void plugin_on_main_thread(const struct clap_plugin *plugin) {
   write_log("plugin_on_main_thread");
 }
 
-const clap_plugin_t* PLG_CREATE(const clap_plugin_descriptor_t* plugindesc) {
+const clap_plugin_t* p005_create(const clap_plugin_descriptor_t* plugindesc) {
   clap_plugin_t* plugin = (clap_plugin_t*)calloc(1, sizeof(*plugin));
   plugin->desc = plugindesc;
   plugin->init = plugin_init;
@@ -382,8 +473,9 @@ const clap_plugin_t* PLG_CREATE(const clap_plugin_descriptor_t* plugindesc) {
   plugin->process = plugin_process;
   plugin->get_extension = plugin_get_extension;
   plugin->on_main_thread = plugin_on_main_thread;
-  PLG* data = calloc(1, sizeof(*data));
+  p005* data = calloc(1, sizeof(*data));
   plugin->plugin_data = data;
 
   return plugin;
 }
+
