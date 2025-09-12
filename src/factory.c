@@ -17,7 +17,7 @@ const clap_plugin_descriptor_t* plugin_factory_get_plugin_descriptor(const struc
 const clap_plugin_t* plugin_factory_create_plugin(const struct clap_plugin_factory* factory, const clap_host_t* host, const char* plugin_id) {
   write_log("factory_create_plugin");
   write_log(plugin_id);
-  return create_plugin(plugin_id);
+  return create_plugin(plugin_id, host);
 }
 
 const clap_plugin_factory_t plugin_factory = {

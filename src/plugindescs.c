@@ -10,10 +10,10 @@ static const char* effect_mono[] = { CLAP_PLUGIN_FEATURE_AUDIO_EFFECT, CLAP_PLUG
 
 typedef struct plugin {
   clap_plugin_descriptor_t desc;
-  clap_plugin_t*(*create)(const clap_plugin_descriptor_t*);
+  clap_plugin_t*(*create)(const clap_plugin_descriptor_t*, const clap_host_t* host);
 } plugin_t;
 
-extern clap_plugin_t* p000_create(const clap_plugin_descriptor_t*);extern clap_plugin_t* p005_create(const clap_plugin_descriptor_t*);
+extern clap_plugin_t* p000_create(const clap_plugin_descriptor_t*, const clap_host_t* host);extern clap_plugin_t* p005_create(const clap_plugin_descriptor_t*, const clap_host_t* host);
 
 plugin_t plugins[] = {
 { { CLAP_VERSION_INIT, "com.nevrofon.p000", "p000 - sine", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p000_create },{ { CLAP_VERSION_INIT, "com.nevrofon.p005", "p005 - test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p005_create },
@@ -27,7 +27,7 @@ const clap_plugin_descriptor_t* get_plugindesc_by_index(int index) {
   return &plugins[index].desc;
 }
 
-clap_plugin_t* create_plugin(const char* plugin_id) {
+clap_plugin_t* create_plugin(const char* plugin_id, const clap_host_t* host) {
   const plugin_t* p = NULL;
 
   for (int i = 0; i < 2; i++) {
@@ -37,6 +37,6 @@ clap_plugin_t* create_plugin(const char* plugin_id) {
     }
   }
   if (!p) return NULL;
-  return p->create(&p->desc);
+  return p->create(&p->desc, host);
 }
 

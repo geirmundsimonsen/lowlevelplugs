@@ -249,24 +249,7 @@ static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_i
       param_info->min_value = 0.75;
       param_info->max_value = 1;
       param_info->default_value = 1;
-      param_info->flags = CLAP_PARAM_REQUIRES_PROCESS | CLAP_PARAM_IS_AUTOMATABLE;
       snprintf(param_info->name, sizeof(param_info->name), "%s", "patch_volume");
-    } break;
-
-  }
-
-  return true;
-}
-
-void plugin_params_flush(const clap_plugin_t *plugin, const clap_input_events_t *in, const clap_output_events_t *out) {
-  write_log("flushing!");
-}
-
-bool plugin_params_get_value(const clap_plugin_t *plugin, clap_id param_id, double *out_value) {
-  write_log("get value");
-  switch (param_id) {
-    case 0: {
-      *out_value = ((p000*)plugin->plugin_data)->patch_volume;
     } break;
 
   }
@@ -276,9 +259,9 @@ bool plugin_params_get_value(const clap_plugin_t *plugin, clap_id param_id, doub
 
 static const clap_plugin_params_t plugin_params = {
   .count = plugin_params_count,
-  .flush = plugin_params_flush,
+  .flush = default_plugin_params_flush,
   .get_info = plugin_params_get_info,
-  .get_value = plugin_params_get_value,
+  .get_value = default_plugin_params_get_value,
   .text_to_value = default_plugin_params_text_to_value,
   .value_to_text = default_plugin_params_value_to_text,
 };
@@ -287,7 +270,6 @@ static bool plugin_init(const struct clap_plugin* plugin) {
   p000* data = plugin->plugin_data;
   data->fixed_lpf_l = fixedblp8_init(768000, 13000);
   data->fixed_lpf_r = fixedblp8_init(768000, 13000);
-  data->patch_volume = 0.9;
   return true;
 }
 
@@ -361,7 +343,7 @@ static const void *plugin_get_extension(const struct clap_plugin *plugin, const 
   return NULL;
 }
 
-const clap_plugin_t* p000_create(const clap_plugin_descriptor_t* plugindesc) {
+const clap_plugin_t* p000_create(const clap_plugin_descriptor_t* plugindesc, const clap_host_t* host) {
   clap_plugin_t* plugin = (clap_plugin_t*)calloc(1, sizeof(*plugin));
   plugin->desc = plugindesc;
   plugin->init = plugin_init;

@@ -256,7 +256,7 @@ static const void *plugin_get_extension(const struct clap_plugin *plugin, const 
   return NULL;
 }}
 
-const clap_plugin_t* {plg_create}(const clap_plugin_descriptor_t* plugindesc) {{
+const clap_plugin_t* {plg_create}(const clap_plugin_descriptor_t* plugindesc, const clap_host_t* host) {{
   clap_plugin_t* plugin = (clap_plugin_t*)calloc(1, sizeof(*plugin));
   plugin->desc = plugindesc;
   plugin->init = plugin_init;

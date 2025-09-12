@@ -3,7 +3,7 @@ use crate::{pluginmodel::{Feature, PluginModel}};
 fn get_plugin_entry_points(models: &[&PluginModel]) -> String {
   let mut p = String::new();
   for model in models {
-    p += &format!(r#"extern clap_plugin_t* {id}_create(const clap_plugin_descriptor_t*);"#,
+    p += &format!(r#"extern clap_plugin_t* {id}_create(const clap_plugin_descriptor_t*, const clap_host_t* host);"#,
       id = model.id,
     );
   }
@@ -39,7 +39,7 @@ static const char* effect_mono[] = {{ CLAP_PLUGIN_FEATURE_AUDIO_EFFECT, CLAP_PLU
 
 typedef struct plugin {{
   clap_plugin_descriptor_t desc;
-  clap_plugin_t*(*create)(const clap_plugin_descriptor_t*);
+  clap_plugin_t*(*create)(const clap_plugin_descriptor_t*, const clap_host_t* host);
 }} plugin_t;
 
 {plugin_entry_points}
@@ -56,7 +56,7 @@ const clap_plugin_descriptor_t* get_plugindesc_by_index(int index) {{
   return &plugins[index].desc;
 }}
 
-clap_plugin_t* create_plugin(const char* plugin_id) {{
+clap_plugin_t* create_plugin(const char* plugin_id, const clap_host_t* host) {{
   const plugin_t* p = NULL;
 
   for (int i = 0; i < {plugin_count}; i++) {{
@@ -66,7 +66,7 @@ clap_plugin_t* create_plugin(const char* plugin_id) {{
     }}
   }}
   if (!p) return NULL;
-  return p->create(&p->desc);
+  return p->create(&p->desc, host);
 }}
 
 "#,

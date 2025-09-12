@@ -28,7 +28,7 @@ fn run() -> Result<(), error::AppError> {
   
   let start = Instant::now();
   write_plugindesc_c_file(&g, &plugins)?;
-  //p000.generate_c_file(&g)?;
+  p000.generate_c_file(&g)?;
   p005.generate_c_file(&g)?;
   let elapsed = start.elapsed();
   println!("generating files: {} ms", elapsed.as_millis());
