@@ -6,7 +6,7 @@ pub fn model() -> PluginModel {
   "#;
   
   PluginModel::new("p005", "test", Feature::InstrumentStereo, Voices(16), Oversampling(16), faust_source, vec![
-    Param::new(1, "lpf_freq", 0.0, 1.0, 0.0),
+    Param::new(1, "lpf_freq", 0.0, 1.0, 0.5),
     Param::new(2, "lpf_q", 0.0, 1.0, 0.0).transfer_fn("val * 9.3 + 0.707")
   ])
 }

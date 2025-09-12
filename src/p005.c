@@ -194,6 +194,7 @@ static Voice voice_init(int pitch) {
 }
 
 typedef struct {
+  const clap_host_t* host;
   Voice voices[16];
   double lpf_freq;
   double lpf_q;
@@ -257,8 +258,8 @@ StereoOut p005_tick(p005* p) {
     out.l = fixedblp8_tick(&p->fixed_lpf_l);
     out.r = fixedblp8_tick(&p->fixed_lpf_r);
   }
-  //out.l *= 0.25;
-  //out.r *= 0.25;
+  out.l *= 0.25;
+  out.r *= 0.25;
   return out;
 }
 
@@ -270,7 +271,7 @@ static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_i
       param_info->id = 1;
       param_info->min_value = 0;
       param_info->max_value = 1;
-      param_info->default_value = 0;
+      param_info->default_value = 0.5;
       snprintf(param_info->name, sizeof(param_info->name), "%s", "lpf_freq");
     } break;
     case 1: {
@@ -286,9 +287,26 @@ static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_i
   return true;
 }
 
+static void plugin_params_flush(const clap_plugin_t *plugin, const clap_input_events_t *in, const clap_output_events_t *out) {
+  int param_ids[2] = { 1, 2 };
+  double param_def_vals[2] = { 0.5, 0 };
+
+  for (int i = 0; i < 2; i++) {
+    clap_event_param_value_t event = {0};
+    event.header.size = sizeof(event);
+    event.header.type = CLAP_EVENT_PARAM_VALUE;
+    event.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+    event.header.flags = 0;
+    event.header.time = 0;
+    event.param_id = param_ids[i];
+    event.value = param_def_vals[i];
+    out->try_push(out, &event.header);
+  }
+}
+
 static const clap_plugin_params_t plugin_params = {
   .count = plugin_params_count,
-  .flush = default_plugin_params_flush,
+  .flush = plugin_params_flush,
   .get_info = plugin_params_get_info,
   .get_value = default_plugin_params_get_value,
   .text_to_value = default_plugin_params_text_to_value,
@@ -296,9 +314,20 @@ static const clap_plugin_params_t plugin_params = {
 };
 
 static bool plugin_init(const struct clap_plugin* plugin) {
-  p005* data = plugin->plugin_data;
-  data->fixed_lpf_l = fixedblp8_init(768000, 13000);
-  data->fixed_lpf_r = fixedblp8_init(768000, 13000);
+  p005* p = plugin->plugin_data;
+  p->fixed_lpf_l = fixedblp8_init(768000, 13000);
+  p->fixed_lpf_r = fixedblp8_init(768000, 13000);
+  return true;
+}
+
+static bool plugin_activate(const struct clap_plugin *plugin, double sample_rate, uint32_t min_frames_count, uint32_t max_frames_count) {
+  p005* p = plugin->plugin_data;
+
+  p->lpf_freq = 0.5;
+  p->lpf_q = 0;
+
+  const clap_host_params_t* host_params = (const clap_host_params_t*)p->host->get_extension(p->host, CLAP_EXT_PARAMS);
+  host_params->request_flush(p->host);
   return true;
 }
 
@@ -380,7 +409,7 @@ const clap_plugin_t* p005_create(const clap_plugin_descriptor_t* plugindesc, con
   plugin->desc = plugindesc;
   plugin->init = plugin_init;
   plugin->destroy = plugin_destroy;
-  plugin->activate = default_plugin_activate;
+  plugin->activate = plugin_activate;
   plugin->deactivate = default_plugin_deactivate;
   plugin->start_processing = default_plugin_start_processing;
   plugin->stop_processing = default_plugin_stop_processing;
@@ -390,6 +419,7 @@ const clap_plugin_t* p005_create(const clap_plugin_descriptor_t* plugindesc, con
   plugin->on_main_thread = default_plugin_on_main_thread;
   p005* data = calloc(1, sizeof(*data));
   plugin->plugin_data = data;
+  data->host = host;
 
   return plugin;
 }

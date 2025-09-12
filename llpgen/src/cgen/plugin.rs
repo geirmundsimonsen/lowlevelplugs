@@ -55,6 +55,16 @@ fn get_update_params(model: &PluginModel) -> String {
   p
 }
 
+fn get_default_val_for_param(model: &PluginModel) -> String {
+  let mut p = String::new();
+
+  for param in &model.params {    
+    p += &format!("  p->{name} = {def_val};\n", name = param.name, def_val = param.default);
+  }
+
+  p
+}
+
 pub fn create_c_file(g: &Global, model: &PluginModel, faust: &String) -> String {
   let c_file = format!(r#"
 #include "../clap/include/clap/clap.h"
@@ -99,6 +109,7 @@ static Voice voice_init(int pitch) {{
 }}
 
 typedef struct {{
+  const clap_host_t* host;
   Voice voices[{voices}];
 {param_decl_for_plugin}
   FixedBLP8 fixed_lpf_l;
@@ -158,8 +169,8 @@ StereoOut {plg_tick}({plg}* p) {{
     out.l = fixedblp8_tick(&p->fixed_lpf_l);
     out.r = fixedblp8_tick(&p->fixed_lpf_r);
   }}
-  //out.l *= 0.25;
-  //out.r *= 0.25;
+  out.l *= 0.25;
+  out.r *= 0.25;
   return out;
 }}
 
@@ -173,9 +184,26 @@ static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_i
   return true;
 }}
 
+static void plugin_params_flush(const clap_plugin_t *plugin, const clap_input_events_t *in, const clap_output_events_t *out) {{
+  int param_ids[{param_count}] = {{ {list_of_param_ids} }};
+  double param_def_vals[{param_count}] = {{ {list_of_param_def_vals} }};
+
+  for (int i = 0; i < {param_count}; i++) {{
+    clap_event_param_value_t event = {{0}};
+    event.header.size = sizeof(event);
+    event.header.type = CLAP_EVENT_PARAM_VALUE;
+    event.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+    event.header.flags = 0;
+    event.header.time = 0;
+    event.param_id = param_ids[i];
+    event.value = param_def_vals[i];
+    out->try_push(out, &event.header);
+  }}
+}}
+
 static const clap_plugin_params_t plugin_params = {{
   .count = plugin_params_count,
-  .flush = default_plugin_params_flush,
+  .flush = plugin_params_flush,
   .get_info = plugin_params_get_info,
   .get_value = default_plugin_params_get_value,
   .text_to_value = default_plugin_params_text_to_value,
@@ -183,9 +211,18 @@ static const clap_plugin_params_t plugin_params = {{
 }};
 
 static bool plugin_init(const struct clap_plugin* plugin) {{
-  {plg}* data = plugin->plugin_data;
-  data->fixed_lpf_l = fixedblp8_init({final_sr}, 13000);
-  data->fixed_lpf_r = fixedblp8_init({final_sr}, 13000);
+  {plg}* p = plugin->plugin_data;
+  p->fixed_lpf_l = fixedblp8_init({final_sr}, 13000);
+  p->fixed_lpf_r = fixedblp8_init({final_sr}, 13000);
+  return true;
+}}
+
+static bool plugin_activate(const struct clap_plugin *plugin, double sample_rate, uint32_t min_frames_count, uint32_t max_frames_count) {{
+  {plg}* p = plugin->plugin_data;
+
+{default_val_for_param}
+  const clap_host_params_t* host_params = (const clap_host_params_t*)p->host->get_extension(p->host, CLAP_EXT_PARAMS);
+  host_params->request_flush(p->host);
   return true;
 }}
 
@@ -261,7 +298,7 @@ const clap_plugin_t* {plg_create}(const clap_plugin_descriptor_t* plugindesc, co
   plugin->desc = plugindesc;
   plugin->init = plugin_init;
   plugin->destroy = plugin_destroy;
-  plugin->activate = default_plugin_activate;
+  plugin->activate = plugin_activate;
   plugin->deactivate = default_plugin_deactivate;
   plugin->start_processing = default_plugin_start_processing;
   plugin->stop_processing = default_plugin_stop_processing;
@@ -271,6 +308,7 @@ const clap_plugin_t* {plg_create}(const clap_plugin_descriptor_t* plugindesc, co
   plugin->on_main_thread = default_plugin_on_main_thread;
   {plg}* data = calloc(1, sizeof(*data));
   plugin->plugin_data = data;
+  data->host = host;
 
   return plugin;
 }}
@@ -286,7 +324,10 @@ const clap_plugin_t* {plg_create}(const clap_plugin_descriptor_t* plugindesc, co
   param_info = get_param_info(model),
   param_decl_for_plugin = get_param_decl_for_plugin(model),
   update_params = get_update_params(model),
-  plugin_params_to_faust = get_plugin_params_to_faust(model)
+  default_val_for_param = get_default_val_for_param(model),
+  plugin_params_to_faust = get_plugin_params_to_faust(model),
+  list_of_param_ids = model.params.iter().map(|p| p.id.to_string()).collect::<Vec<String>>().join(", "),
+  list_of_param_def_vals = model.params.iter().map(|p| p.default.to_string()).collect::<Vec<String>>().join(", ")
   );
 
   c_file

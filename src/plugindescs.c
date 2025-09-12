@@ -16,7 +16,7 @@ typedef struct plugin {
 extern clap_plugin_t* p000_create(const clap_plugin_descriptor_t*, const clap_host_t* host);extern clap_plugin_t* p005_create(const clap_plugin_descriptor_t*, const clap_host_t* host);
 
 plugin_t plugins[] = {
-{ { CLAP_VERSION_INIT, "com.nevrofon.p000", "p000 - sine", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p000_create },{ { CLAP_VERSION_INIT, "com.nevrofon.p005", "p005 - test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p005_create },
+{ { CLAP_VERSION_INIT, "com.nevrofon.p000", "p000 - Sine Test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p000_create },{ { CLAP_VERSION_INIT, "com.nevrofon.p005", "p005 - test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p005_create },
 };
 
 int get_plugin_count() {
