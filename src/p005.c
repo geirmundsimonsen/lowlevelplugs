@@ -29,38 +29,38 @@ typedef struct {
   double fRec4[2];
   double fConst4;
   double fRec0[2];
-} mydsp;
+} faust_p005;
 
-mydsp* newmydsp() { 
-  mydsp* dsp = (mydsp*)calloc(1, sizeof(mydsp));
+faust_p005* newfaust_p005() { 
+  faust_p005* dsp = (faust_p005*)calloc(1, sizeof(faust_p005));
   return dsp;
 }
 
-void deletemydsp(mydsp* dsp) { 
+void deletefaust_p005(faust_p005* dsp) { 
   free(dsp);
 }
 
-int getSampleRatemydsp(mydsp* __restrict__ dsp) {
+int getSampleRatefaust_p005(faust_p005* __restrict__ dsp) {
   return dsp->fSampleRate;
 }
 
-int getNumInputsmydsp(mydsp* __restrict__ dsp) {
+int getNumInputsfaust_p005(faust_p005* __restrict__ dsp) {
   return 0;
 }
-int getNumOutputsmydsp(mydsp* __restrict__ dsp) {
+int getNumOutputsfaust_p005(faust_p005* __restrict__ dsp) {
   return 1;
 }
 
-void classInitmydsp(int sample_rate) {
+void classInitfaust_p005(int sample_rate) {
 }
 
-void instanceResetUserInterfacemydsp(mydsp* dsp) {
+void instanceResetUserInterfacefaust_p005(faust_p005* dsp) {
   dsp->lpf_freq = (double)(0.0);
   dsp->lpf_q = (double)(0.0);
   dsp->freq = (double)(0.0);
 }
 
-void instanceClearmydsp(mydsp* dsp) {
+void instanceClearfaust_p005(faust_p005* dsp) {
   
   {
     int l0;
@@ -112,7 +112,7 @@ void instanceClearmydsp(mydsp* dsp) {
   }
 }
 
-void instanceConstantsmydsp(mydsp* dsp, int sample_rate) {
+void instanceConstantsfaust_p005(faust_p005* dsp, int sample_rate) {
   dsp->fSampleRate = sample_rate;
   dsp->fConst0 = (double)(dsp->fSampleRate);
   dsp->fConst1 = 6.283185307179586 / dsp->fConst0;
@@ -121,18 +121,18 @@ void instanceConstantsmydsp(mydsp* dsp, int sample_rate) {
   dsp->fConst4 = 1.0 / (dsp->fConst1 + 1.0);
 }
   
-void instanceInitmydsp(mydsp* dsp, int sample_rate) {
-  instanceConstantsmydsp(dsp, sample_rate);
-  instanceResetUserInterfacemydsp(dsp);
-  instanceClearmydsp(dsp);
+void instanceInitfaust_p005(faust_p005* dsp, int sample_rate) {
+  instanceConstantsfaust_p005(dsp, sample_rate);
+  instanceResetUserInterfacefaust_p005(dsp);
+  instanceClearfaust_p005(dsp);
 }
 
-void initmydsp(mydsp* dsp, int sample_rate) {
-  classInitmydsp(sample_rate);
-  instanceInitmydsp(dsp, sample_rate);
+void initfaust_p005(faust_p005* dsp, int sample_rate) {
+  classInitfaust_p005(sample_rate);
+  instanceInitfaust_p005(dsp, sample_rate);
 }
 
-void framemydsp(mydsp* dsp, double* __restrict__ inputs, double* __restrict__ outputs) {
+void framefaust_p005(faust_p005* dsp, double* __restrict__ inputs, double* __restrict__ outputs) {
   double fSlow0 = tan(dsp->fConst1 * pow(1e+01, 3.0 * (double)(dsp->lpf_freq) + 1.0));
   double fSlow1 = fSlow0 + 1.0;
   double fSlow2 = fSlow0 / fSlow1;
@@ -174,7 +174,7 @@ typedef struct {
 
 typedef struct {
   int pitch;
-  mydsp faust;
+  faust_p005 faust;
   TabPlay rel_env;
   bool active;
   bool release;
@@ -183,7 +183,7 @@ typedef struct {
 static Voice voice_init(int pitch) {
   Voice v = {0};
   v.rel_env = tabplay_init(768000);
-  initmydsp(&v.faust, 768000);
+  initfaust_p005(&v.faust, 768000);
   v.faust.freq = midipitch2freq(pitch);
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
@@ -208,7 +208,7 @@ static StereoOut voice_tick(Voice* v, p005* p) {
   v->faust.lpf_freq = p->lpf_freq;
   v->faust.lpf_q = p->lpf_q;
 
-  framemydsp(&v->faust, 0, &so.l);
+  framefaust_p005(&v->faust, 0, &so.l);
   so.r = so.l;
 
   if (v->release) {
@@ -257,8 +257,8 @@ StereoOut p005_tick(p005* p) {
     out.l = fixedblp8_tick(&p->fixed_lpf_l);
     out.r = fixedblp8_tick(&p->fixed_lpf_r);
   }
-  out.l *= 0.25;
-  out.r *= 0.25;
+  //out.l *= 0.25;
+  //out.r *= 0.25;
   return out;
 }
 

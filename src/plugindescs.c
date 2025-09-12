@@ -13,14 +13,14 @@ typedef struct plugin {
   clap_plugin_t*(*create)(const clap_plugin_descriptor_t*);
 } plugin_t;
 
-extern clap_plugin_t* p005_create(const clap_plugin_descriptor_t*);
+extern clap_plugin_t* p000_create(const clap_plugin_descriptor_t*);extern clap_plugin_t* p005_create(const clap_plugin_descriptor_t*);
 
 plugin_t plugins[] = {
-{ { CLAP_VERSION_INIT, "com.nevrofon.p005", "p005 - test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p005_create },
+{ { CLAP_VERSION_INIT, "com.nevrofon.p000", "p000 - sine", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p000_create },{ { CLAP_VERSION_INIT, "com.nevrofon.p005", "p005 - test", "Nevrofon", "", "", "", "", "",  instrument_stereo }, p005_create },
 };
 
 int get_plugin_count() {
-  return 1;
+  return 2;
 }
 
 const clap_plugin_descriptor_t* get_plugindesc_by_index(int index) {
@@ -30,7 +30,7 @@ const clap_plugin_descriptor_t* get_plugindesc_by_index(int index) {
 clap_plugin_t* create_plugin(const char* plugin_id) {
   const plugin_t* p = NULL;
 
-  for (int i = 0; i < 1; i++) {
+  for (int i = 0; i < 2; i++) {
     if (strcmp(plugin_id, plugins[i].desc.id) == 0) {
       p = &plugins[i];
       break;

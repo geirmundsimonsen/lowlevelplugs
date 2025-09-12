@@ -79,7 +79,7 @@ typedef struct {{
 
 typedef struct {{
   int pitch;
-  mydsp faust;
+  faust_{plg} faust;
   TabPlay rel_env;
   bool active;
   bool release;
@@ -88,7 +88,7 @@ typedef struct {{
 static Voice voice_init(int pitch) {{
   Voice v = {{0}};
   v.rel_env = tabplay_init({final_sr});
-  initmydsp(&v.faust, {final_sr});
+  initfaust_{plg}(&v.faust, {final_sr});
   v.faust.freq = midipitch2freq(pitch);
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
@@ -109,7 +109,7 @@ static StereoOut voice_tick(Voice* v, {plg}* p) {{
   StereoOut so = {{ 0 }};
   
 {plugin_params_to_faust}
-  framemydsp(&v->faust, 0, &so.l);
+  framefaust_{plg}(&v->faust, 0, &so.l);
   so.r = so.l;
 
   if (v->release) {{
@@ -158,8 +158,8 @@ StereoOut {plg_tick}({plg}* p) {{
     out.l = fixedblp8_tick(&p->fixed_lpf_l);
     out.r = fixedblp8_tick(&p->fixed_lpf_r);
   }}
-  out.l *= 0.25;
-  out.r *= 0.25;
+  //out.l *= 0.25;
+  //out.r *= 0.25;
   return out;
 }}
 

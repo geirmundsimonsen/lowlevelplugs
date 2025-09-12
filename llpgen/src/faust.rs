@@ -73,7 +73,7 @@ pub fn rewrite(mut c_file: String) -> String {
   let end_idx = c_file[idx..].find("}").unwrap();
   c_file.replace_range(idx..=idx+end_idx, "");
 
-  let idx = c_file.find("void computemydsp").unwrap();
+  let idx = c_file.find("void compute").unwrap();
   c_file.replace_range(idx.., "");
 
   c_file = c_file.replace("fminl(1.92e+05L, fmaxl(1.0L, (quad)(dsp->fSampleRate)))", "(quad)(dsp->fSampleRate)");

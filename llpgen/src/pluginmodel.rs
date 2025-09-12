@@ -90,7 +90,7 @@ impl PluginModel {
     write!(faust_dsp, "{}", faust::add_imports_and_params(self)).expect("Error writing to file");
     faust_dsp.flush().expect("Failed to flush");
     
-    let faust_c = cmd(None, "faust -lang c -double -os faust.dsp")?;
+    let faust_c = cmd(None, &format!("faust -lang c -double -os -cn faust_{id} faust.dsp", id = self.id))?;
     cmd(None, "rm faust.dsp")?;
   
     let faust_c = faust::rewrite(faust_c);

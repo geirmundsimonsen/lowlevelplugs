@@ -1,6 +1,6 @@
 use crate::pluginmodel::{Feature, Oversampling, Param, PluginModel, Voices};
 
-pub fn p005_model() -> PluginModel {
+pub fn model() -> PluginModel {
   let faust_source = r#"
   process = os.lf_pulsetrain(freq, 0.1) * 0.5 : ve.korg35LPF(lpf_freq, lpf_q) : fi.dcblockerat(2);
   "#;
