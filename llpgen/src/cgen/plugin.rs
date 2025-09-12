@@ -99,7 +99,7 @@ static Voice voice_init(int pitch) {{
 }}
 
 typedef struct {{
-  Voice voices[16];
+  Voice voices[{voices}];
 {param_decl_for_plugin}
   FixedBLP8 fixed_lpf_l;
   FixedBLP8 fixed_lpf_r;
@@ -122,7 +122,7 @@ static StereoOut voice_tick(Voice* v, {plg}* p) {{
 }}
 
 static void add_voice_at_pitch({plg}* p, int pitch) {{
-  for (int i = 0; i < 16; i++) {{
+  for (int i = 0; i < {voices}; i++) {{
     if (!p->voices[i].active) {{
       p->voices[i] = voice_init(pitch);
       break;
@@ -131,7 +131,7 @@ static void add_voice_at_pitch({plg}* p, int pitch) {{
 }}
 
 static void release_voice_at_pitch({plg}* p, int pitch) {{
-  for (int i = 0; i < 16; i++) {{
+  for (int i = 0; i < {voices}; i++) {{
     if (p->voices[i].active && p->voices[i].pitch == pitch) {{
       p->voices[i].release = true;
       break;
@@ -144,7 +144,7 @@ StereoOut {plg_tick}({plg}* p) {{
   for (int i = 0; i < {oversample}; i++) {{ // oversampling block
     out.l = 0;
     out.r = 0;
-    for (int v = 0; v < 16; v++) {{
+    for (int v = 0; v < {voices}; v++) {{
       if (p->voices[v].active) {{
         StereoOut voiceOut;
         voiceOut = voice_tick(&p->voices[v], p);
@@ -278,6 +278,7 @@ const clap_plugin_t* {plg_create}(const clap_plugin_descriptor_t* plugindesc) {{
 "#,
   final_sr = g.sample_rate * model.oversample,
   oversample = model.oversample,
+  voices = model.voices,
   plg_tick = model.id.to_string() + "_tick",
   plg_create = model.id.to_string() + "_create",
   plg = model.id.to_string(),

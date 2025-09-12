@@ -37,19 +37,52 @@ pub enum Feature {
   EffectMono
 }
 
+#[derive(Copy, Clone)]
+pub struct Oversampling(pub i32);
+
+impl std::fmt::Display for Oversampling {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Voices(pub i32);
+
+impl std::fmt::Display for Voices {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::ops::Mul<i32> for Oversampling {
+    type Output = i32;
+    fn mul(self, rhs: i32) -> i32 {
+        self.0 * rhs
+    }
+}
+
+impl std::ops::Mul<Oversampling> for i32 {
+    type Output = i32;
+    fn mul(self, rhs: Oversampling) -> i32 {
+        self * rhs.0
+    }
+}
+
 pub struct PluginModel {
   pub id: String,
   pub plugin_id: String,
   pub name: String,
   pub feature: Feature, 
-  pub oversample: i32,
+  pub voices: Voices,
+  pub oversample: Oversampling,
   pub faust_source: String,
   pub params: std::vec::Vec<Param>
 }
 
 impl PluginModel {
-  pub fn new(id: &str, name: &str, feature: Feature, oversample: i32, faust_source: &str, params: std::vec::Vec<Param>) -> PluginModel {
-    PluginModel { id: id.to_string(), name: name.to_string(), plugin_id: format!("com.nevrofon.{}", id), feature, oversample, faust_source: faust_source.to_string(), params }
+  pub fn new(id: &str, name: &str, feature: Feature, voices: Voices, oversample: Oversampling, faust_source: &str, params: std::vec::Vec<Param>) -> PluginModel {
+    PluginModel { id: id.to_string(), name: name.to_string(), plugin_id: format!("com.nevrofon.{}", id), feature, voices, oversample, faust_source: faust_source.to_string(), params }
   }
 
   pub fn generate_c_file(&self, g: &Global) -> Result<(), ShellError> {
