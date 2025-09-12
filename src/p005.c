@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "clap_default_fns.h"
 #include "log.h"
 #include "util.h"
 #include "osc.h"
@@ -261,44 +262,6 @@ StereoOut p005_tick(p005* p) {
   return out;
 }
 
-static uint32_t plugin_audio_ports_count(const clap_plugin_t* plugin, bool is_input) {
-  return 1;
-}
-
-static bool plugin_audio_ports_get(const clap_plugin_t* plugin, uint32_t index, bool is_input, clap_audio_port_info_t* info) {
-  if (index > 0) { return false; }
-  info->id = 0;
-  snprintf(info->name, sizeof(info->name), "%s", "Main");
-  info->channel_count = 2;
-  info->flags = CLAP_AUDIO_PORT_IS_MAIN;
-  info->port_type = CLAP_PORT_STEREO;
-  info->in_place_pair = CLAP_INVALID_ID;
-  return true;
-}
-
-static const clap_plugin_audio_ports_t plugin_audio_ports = {
-  plugin_audio_ports_count,
-  plugin_audio_ports_get,
-};
-
-static uint32_t plugin_note_ports_count(const clap_plugin_t* plugin, bool is_input) {
-  return 1;
-}
-
-static bool plugin_note_ports_get(const clap_plugin_t* plugin, uint32_t index, bool is_input, clap_note_port_info_t* info) {
-  if (index > 0) { return false; }
-  info->id = 0;
-  snprintf(info->name, sizeof(info->name), "%s", "Note Port 1");
-  info->supported_dialects = CLAP_NOTE_DIALECT_CLAP | CLAP_NOTE_DIALECT_MIDI | CLAP_NOTE_DIALECT_MIDI_MPE | CLAP_NOTE_DIALECT_MIDI2;
-  info->preferred_dialect = CLAP_NOTE_DIALECT_CLAP;
-  return true;
-}
-
-static const clap_plugin_note_ports_t plugin_note_ports = {
-  .count = plugin_note_ports_count,
-  .get = plugin_note_ports_get,
-};
-
 static uint32_t plugin_params_count(const clap_plugin_t* plugin) { return 2; }
 
 static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_index, clap_param_info_t* param_info) {
@@ -323,36 +286,16 @@ static bool plugin_params_get_info(const clap_plugin_t* plugin, uint32_t param_i
   return true;
 }
 
-static bool plugin_params_get_value(const clap_plugin_t* plugin, clap_id param_id, double* out_value) {
-  write_log("plugin_params_get_value");
-  return true;
-}
-
-static bool plugin_params_value_to_text(const clap_plugin_t* plugin, clap_id param_id, double value, char* out_buffer, uint32_t out_buffer_capacity) {
-  write_log("plugin_params_value_to_text");
-  return true;
-}
-
-static bool plugin_params_text_to_value(const clap_plugin_t* plugin, clap_id param_id, const char* param_value_text, double* out_value) {
-  write_log("plugin_params_text_to_value");
-  return true;
-}
-
-static void plugin_params_flush(const clap_plugin_t* plugin, const clap_input_events_t* in, const clap_output_events_t* out) {
-  write_log("plugin_params_flush");
-}
-
 static const clap_plugin_params_t plugin_params = {
   .count = plugin_params_count,
-  .flush = plugin_params_flush,
+  .flush = default_plugin_params_flush,
   .get_info = plugin_params_get_info,
-  .get_value = plugin_params_get_value,
-  .text_to_value = plugin_params_text_to_value,
-  .value_to_text = plugin_params_value_to_text,
+  .get_value = default_plugin_params_get_value,
+  .text_to_value = default_plugin_params_text_to_value,
+  .value_to_text = default_plugin_params_value_to_text,
 };
 
 static bool plugin_init(const struct clap_plugin* plugin) {
-  write_log("plugin_init");
   p005* data = plugin->plugin_data;
   data->fixed_lpf_l = fixedblp8_init(768000, 13000);
   data->fixed_lpf_r = fixedblp8_init(768000, 13000);
@@ -360,31 +303,8 @@ static bool plugin_init(const struct clap_plugin* plugin) {
 }
 
 static void plugin_destroy(const struct clap_plugin* plugin) {
-  write_log("plugin_destroy");
   free((p005*)plugin->plugin_data);
   free((struct clap_plugin*)plugin);
-}
-
-static bool plugin_activate(const struct clap_plugin* plugin, double sample_rate, uint32_t min_frames_count, uint32_t max_frames_count) {
-  write_log("plugin_activate");
-  return true;
-}
-
-static void plugin_deactivate(const struct clap_plugin* plugin) {
-  write_log("plugin_deactivate");
-}
-
-static bool plugin_start_processing(const struct clap_plugin* plugin) {
-  write_log("plugin_start_processing");
-  return true;
-}
-
-static void plugin_stop_processing(const struct clap_plugin* plugin) {
-  write_log("plugin_stop_processing");
-}
-
-static void plugin_reset(const struct clap_plugin* plugin) {
-  write_log("plugin_reset");
 }
 
 static clap_process_status plugin_process(const struct clap_plugin* plugin, const clap_process_t* process) {
@@ -449,15 +369,10 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
 }
 
 static const void *plugin_get_extension(const struct clap_plugin *plugin, const char *id) {
-  write_log("plugin_get_extension");
-  if (!strcmp(id, CLAP_EXT_AUDIO_PORTS)) { return &plugin_audio_ports; }
-  if (!strcmp(id, CLAP_EXT_NOTE_PORTS)) { return &plugin_note_ports; }
+  if (!strcmp(id, CLAP_EXT_AUDIO_PORTS)) { return &one_stereo_audio_port; }
+  if (!strcmp(id, CLAP_EXT_NOTE_PORTS)) { return &one_note_port; }
   if (!strcmp(id, CLAP_EXT_PARAMS)) { return &plugin_params; }
   return NULL;
-}
-
-static void plugin_on_main_thread(const struct clap_plugin *plugin) {
-  write_log("plugin_on_main_thread");
 }
 
 const clap_plugin_t* p005_create(const clap_plugin_descriptor_t* plugindesc) {
@@ -465,14 +380,14 @@ const clap_plugin_t* p005_create(const clap_plugin_descriptor_t* plugindesc) {
   plugin->desc = plugindesc;
   plugin->init = plugin_init;
   plugin->destroy = plugin_destroy;
-  plugin->activate = plugin_activate;
-  plugin->deactivate = plugin_deactivate;
-  plugin->start_processing = plugin_start_processing;
-  plugin->stop_processing = plugin_stop_processing;
-  plugin->reset = plugin_reset;
+  plugin->activate = default_plugin_activate;
+  plugin->deactivate = default_plugin_deactivate;
+  plugin->start_processing = default_plugin_start_processing;
+  plugin->stop_processing = default_plugin_stop_processing;
+  plugin->reset = default_plugin_reset;
   plugin->process = plugin_process;
   plugin->get_extension = plugin_get_extension;
-  plugin->on_main_thread = plugin_on_main_thread;
+  plugin->on_main_thread = default_plugin_on_main_thread;
   p005* data = calloc(1, sizeof(*data));
   plugin->plugin_data = data;
 

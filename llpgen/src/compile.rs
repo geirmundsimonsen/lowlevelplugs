@@ -19,7 +19,7 @@ pub fn compile_c_file(g: &Global, file: &str) -> Result<(), ShellError> {
 pub fn compile_binary_and_copy(g: &Global, plugins: &[&PluginModel]) -> Result<(), ShellError> {
   let binary = "lowlevelplugs.clap";
 
-  let mut object_files: Vec<&str> = vec!["log", "factory", "plugindescs", "tables", "osc", "filter", "util"];
+  let mut object_files: Vec<&str> = vec!["clap_default_fns", "log", "factory", "plugindescs", "tables", "osc", "filter", "util"];
   for model in plugins {
     object_files.push(&model.id)
   }
@@ -33,7 +33,7 @@ pub fn compile_binary_and_copy(g: &Global, plugins: &[&PluginModel]) -> Result<(
     dist = g.dist_dir
   ))?;
   cmd(None, &format!("sudo cp {dist}/{binary} {}", g.clap_plugin_dir, dist = g.dist_dir))?;
-  
+
   let elapsed = start.elapsed();
   println!("compiling and copying binary: {} ms", elapsed.as_millis());
 

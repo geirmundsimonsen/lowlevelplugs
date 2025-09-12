@@ -31,6 +31,7 @@ fn run() -> Result<(), error::AppError> {
   println!("generating files: {} ms", elapsed.as_millis());
 
   compile_and_run_tables(&g)?;
+  compile_c_file(&g, "clap_default_fns")?;
   compile_c_file(&g, "log")?;
   compile_c_file(&g, "factory")?;
   compile_c_file(&g, "plugindescs")?;
