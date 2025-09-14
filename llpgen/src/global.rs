@@ -9,7 +9,7 @@ pub struct Global {
 impl Global {
   pub fn new(base_dir: &str) -> Global {
     Global {
-      sample_rate: 48000,
+      sample_rate: 192000,
       base_dir: base_dir.to_string(),
       src_dir: base_dir.to_string() + "/src",
       dist_dir: base_dir.to_string() + "/dist",

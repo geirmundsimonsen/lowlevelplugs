@@ -5,12 +5,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "aafilter.h"
 #include "clap_default_fns.h"
 #include "log.h"
 #include "util.h"
 #include "osc.h"
 #include "filter.h"
 #include "tables.h"
+
+
+
+
+
+
 
 typedef struct {
   int iVec0[2];
@@ -182,8 +189,8 @@ typedef struct {
 
 static Voice voice_init(int pitch) {
   Voice v = {0};
-  v.rel_env = tabplay_init(768000);
-  initfaust_p005(&v.faust, 768000);
+  v.rel_env = tabplay_init(3072000);
+  initfaust_p005(&v.faust, 3072000);
   v.faust.freq = midipitch2freq(pitch);
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
@@ -199,8 +206,8 @@ typedef struct {
   double lpf_freq;
   double lpf_q;
 
-  FixedBLP8 fixed_lpf_l;
-  FixedBLP8 fixed_lpf_r;
+  LowpassLR4x2 aa_filter_l;
+  LowpassLR4x2 aa_filter_r;
 } p005;
 
 static StereoOut voice_tick(Voice* v, p005* p) {
@@ -240,10 +247,14 @@ static void release_voice_at_pitch(p005* p, int pitch) {
 }
 
 StereoOut p005_tick(p005* p) {
-  StereoOut out = { 0 };
+  StereoOut o_out = { 0 };
+  bool one_or_more_voices_active = false;
+  for (int v = 0; v < 16; v++) {
+    if (p->voices[v].active) { one_or_more_voices_active = true; }
+  }
+  if (!one_or_more_voices_active) { return o_out; }
   for (int i = 0; i < 16; i++) { // oversampling block
-    out.l = 0;
-    out.r = 0;
+    StereoOut out = { 0 };
     for (int v = 0; v < 16; v++) {
       if (p->voices[v].active) {
         StereoOut voiceOut;
@@ -253,14 +264,12 @@ StereoOut p005_tick(p005* p) {
         out.r += voiceOut.r;
       }
     }
-    p->fixed_lpf_l.in = out.l;
-    p->fixed_lpf_r.in = out.r;
-    out.l = fixedblp8_tick(&p->fixed_lpf_l);
-    out.r = fixedblp8_tick(&p->fixed_lpf_r);
+    frameLowpassLR4x2(&p->aa_filter_l, &out.l, &o_out.l);
+    frameLowpassLR4x2(&p->aa_filter_r, &out.r, &o_out.r);
   }
-  out.l *= 0.25;
-  out.r *= 0.25;
-  return out;
+  o_out.l *= 0.25;
+  o_out.r *= 0.25;
+  return o_out;
 }
 
 static uint32_t plugin_params_count(const clap_plugin_t* plugin) { return 2; }
@@ -315,8 +324,8 @@ static const clap_plugin_params_t plugin_params = {
 
 static bool plugin_init(const struct clap_plugin* plugin) {
   p005* p = plugin->plugin_data;
-  p->fixed_lpf_l = fixedblp8_init(768000, 13000);
-  p->fixed_lpf_r = fixedblp8_init(768000, 13000);
+  initLowpassLR4x2(&p->aa_filter_l, 3072000);
+  initLowpassLR4x2(&p->aa_filter_r, 3072000);
   return true;
 }
 

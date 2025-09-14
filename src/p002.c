@@ -20,71 +20,84 @@
 
 
 typedef struct {
-  int iRec0[2];
-  double patch_volume;
+  int iVec0[2];
   double freq;
   int fSampleRate;
-} faust_p001;
+  double fConst0;
+  double fRec0[2];
+  double patch_volume;
+} faust_p002;
 
-faust_p001* newfaust_p001() { 
-  faust_p001* dsp = (faust_p001*)calloc(1, sizeof(faust_p001));
+faust_p002* newfaust_p002() { 
+  faust_p002* dsp = (faust_p002*)calloc(1, sizeof(faust_p002));
   return dsp;
 }
 
-void deletefaust_p001(faust_p001* dsp) { 
+void deletefaust_p002(faust_p002* dsp) { 
   free(dsp);
 }
 
-int getSampleRatefaust_p001(faust_p001* __restrict__ dsp) {
+int getSampleRatefaust_p002(faust_p002* __restrict__ dsp) {
   return dsp->fSampleRate;
 }
 
-int getNumInputsfaust_p001(faust_p001* __restrict__ dsp) {
+int getNumInputsfaust_p002(faust_p002* __restrict__ dsp) {
   return 0;
 }
-int getNumOutputsfaust_p001(faust_p001* __restrict__ dsp) {
+int getNumOutputsfaust_p002(faust_p002* __restrict__ dsp) {
   return 1;
 }
 
-void classInitfaust_p001(int sample_rate) {
+void classInitfaust_p002(int sample_rate) {
 }
 
-void instanceResetUserInterfacefaust_p001(faust_p001* dsp) {
-  dsp->patch_volume = (double)(0.0);
+void instanceResetUserInterfacefaust_p002(faust_p002* dsp) {
   dsp->freq = (double)(0.0);
+  dsp->patch_volume = (double)(0.0);
 }
 
-void instanceClearfaust_p001(faust_p001* dsp) {
+void instanceClearfaust_p002(faust_p002* dsp) {
   
   {
     int l0;
     for (l0 = 0; l0 < 2; l0 = l0 + 1) {
-      dsp->iRec0[l0] = 0;
+      dsp->iVec0[l0] = 0;
+    }
+  }
+  
+  {
+    int l1;
+    for (l1 = 0; l1 < 2; l1 = l1 + 1) {
+      dsp->fRec0[l1] = 0.0;
     }
   }
 }
 
-void instanceConstantsfaust_p001(faust_p001* dsp, int sample_rate) {
+void instanceConstantsfaust_p002(faust_p002* dsp, int sample_rate) {
   dsp->fSampleRate = sample_rate;
+  dsp->fConst0 = 1.0 / (double)(dsp->fSampleRate);
 }
   
-void instanceInitfaust_p001(faust_p001* dsp, int sample_rate) {
-  instanceConstantsfaust_p001(dsp, sample_rate);
-  instanceResetUserInterfacefaust_p001(dsp);
-  instanceClearfaust_p001(dsp);
+void instanceInitfaust_p002(faust_p002* dsp, int sample_rate) {
+  instanceConstantsfaust_p002(dsp, sample_rate);
+  instanceResetUserInterfacefaust_p002(dsp);
+  instanceClearfaust_p002(dsp);
 }
 
-void initfaust_p001(faust_p001* dsp, int sample_rate) {
-  classInitfaust_p001(sample_rate);
-  instanceInitfaust_p001(dsp, sample_rate);
+void initfaust_p002(faust_p002* dsp, int sample_rate) {
+  classInitfaust_p002(sample_rate);
+  instanceInitfaust_p002(dsp, sample_rate);
 }
 
-void framefaust_p001(faust_p001* dsp, double* __restrict__ inputs, double* __restrict__ outputs) {
-  double fSlow0 = 2.3283064376228985e-10 * (double)(dsp->patch_volume);
-  double fSlow1 = 1e-10 * (double)(dsp->freq);
-  dsp->iRec0[0] = 1103515245 * dsp->iRec0[1] + 12345;
-  outputs[0] = (double)(fSlow1 + fSlow0 * (double)(dsp->iRec0[0]));
-  dsp->iRec0[1] = dsp->iRec0[0];
+void framefaust_p002(faust_p002* dsp, double* __restrict__ inputs, double* __restrict__ outputs) {
+  double fSlow0 = dsp->fConst0 * (double)(dsp->freq);
+  double fSlow1 = 0.5 * (double)(dsp->patch_volume);
+  dsp->iVec0[0] = 1;
+  double fTemp0 = ((1 - dsp->iVec0[1]) ? 0.0 : fSlow0 + dsp->fRec0[1]);
+  dsp->fRec0[0] = fTemp0 - floor(fTemp0);
+  outputs[0] = (double)(fSlow1 * (2.0 * dsp->fRec0[0] + -1.0));
+  dsp->iVec0[1] = dsp->iVec0[0];
+  dsp->fRec0[1] = dsp->fRec0[0];
 }
 
 
@@ -96,7 +109,7 @@ typedef struct {
 
 typedef struct {
   int pitch;
-  faust_p001 faust;
+  faust_p002 faust;
   TabPlay rel_env;
   bool active;
   bool release;
@@ -105,7 +118,7 @@ typedef struct {
 static Voice voice_init(int pitch) {
   Voice v = {0};
   v.rel_env = tabplay_init(3072000);
-  initfaust_p001(&v.faust, 3072000);
+  initfaust_p002(&v.faust, 3072000);
   v.faust.freq = midipitch2freq(pitch);
   v.rel_env.s = 0.05;
   v.rel_env.wt = et_fall_lin;
@@ -122,14 +135,14 @@ typedef struct {
 
   LowpassLR4x2 aa_filter_l;
   LowpassLR4x2 aa_filter_r;
-} p001;
+} p002;
 
-static StereoOut voice_tick(Voice* v, p001* p) {
+static StereoOut voice_tick(Voice* v, p002* p) {
   StereoOut so = { 0 };
   
   v->faust.patch_volume = p->patch_volume;
 
-  framefaust_p001(&v->faust, 0, &so.l);
+  framefaust_p002(&v->faust, 0, &so.l);
   so.r = so.l;
 
   if (v->release) {
@@ -141,7 +154,7 @@ static StereoOut voice_tick(Voice* v, p001* p) {
   return so;
 }
 
-static void add_voice_at_pitch(p001* p, int pitch) {
+static void add_voice_at_pitch(p002* p, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (!p->voices[i].active) {
       p->voices[i] = voice_init(pitch);
@@ -150,7 +163,7 @@ static void add_voice_at_pitch(p001* p, int pitch) {
   }
 }
 
-static void release_voice_at_pitch(p001* p, int pitch) {
+static void release_voice_at_pitch(p002* p, int pitch) {
   for (int i = 0; i < 16; i++) {
     if (p->voices[i].active && p->voices[i].pitch == pitch) {
       p->voices[i].release = true;
@@ -159,7 +172,7 @@ static void release_voice_at_pitch(p001* p, int pitch) {
   }
 }
 
-StereoOut p001_tick(p001* p) {
+StereoOut p002_tick(p002* p) {
   StereoOut o_out = { 0 };
   bool one_or_more_voices_active = false;
   for (int v = 0; v < 16; v++) {
@@ -229,14 +242,14 @@ static const clap_plugin_params_t plugin_params = {
 };
 
 static bool plugin_init(const struct clap_plugin* plugin) {
-  p001* p = plugin->plugin_data;
+  p002* p = plugin->plugin_data;
   initLowpassLR4x2(&p->aa_filter_l, 3072000);
   initLowpassLR4x2(&p->aa_filter_r, 3072000);
   return true;
 }
 
 static bool plugin_activate(const struct clap_plugin *plugin, double sample_rate, uint32_t min_frames_count, uint32_t max_frames_count) {
-  p001* p = plugin->plugin_data;
+  p002* p = plugin->plugin_data;
 
   p->patch_volume = 1;
 
@@ -246,7 +259,7 @@ static bool plugin_activate(const struct clap_plugin *plugin, double sample_rate
 }
 
 static void plugin_destroy(const struct clap_plugin* plugin) {
-  free((p001*)plugin->plugin_data);
+  free((p002*)plugin->plugin_data);
   free((struct clap_plugin*)plugin);
 }
 
@@ -266,13 +279,13 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
       
       if (hdr->type == CLAP_EVENT_NOTE_ON) {
         const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
-        add_voice_at_pitch((p001*)plugin->plugin_data, ev->key);
+        add_voice_at_pitch((p002*)plugin->plugin_data, ev->key);
       } else if (hdr->type == CLAP_EVENT_NOTE_OFF) {
         const clap_event_note_t *ev = (const clap_event_note_t*)hdr;
-        release_voice_at_pitch((p001*)plugin->plugin_data, ev->key);
+        release_voice_at_pitch((p002*)plugin->plugin_data, ev->key);
       } else if (hdr->type == CLAP_EVENT_PARAM_VALUE) {
         const clap_event_param_value_t *ev = (const clap_event_param_value_t*)hdr;
-        p001* p = plugin->plugin_data;
+        p002* p = plugin->plugin_data;
         double val = ev->value;
         switch (ev->param_id) {
           case 1: {     
@@ -295,7 +308,7 @@ static clap_process_status plugin_process(const struct clap_plugin* plugin, cons
       float L = process->audio_inputs[0].data32[0][i];
       float R = process->audio_inputs[0].data32[1][i];
 
-      StereoOut out = p001_tick((p001*)plugin->plugin_data);
+      StereoOut out = p002_tick((p002*)plugin->plugin_data);
       
       L += out.l;
       R += out.r;
@@ -315,7 +328,7 @@ static const void *plugin_get_extension(const struct clap_plugin *plugin, const 
   return NULL;
 }
 
-const clap_plugin_t* p001_create(const clap_plugin_descriptor_t* plugindesc, const clap_host_t* host) {
+const clap_plugin_t* p002_create(const clap_plugin_descriptor_t* plugindesc, const clap_host_t* host) {
   clap_plugin_t* plugin = (clap_plugin_t*)calloc(1, sizeof(*plugin));
   plugin->desc = plugindesc;
   plugin->init = plugin_init;
@@ -328,7 +341,7 @@ const clap_plugin_t* p001_create(const clap_plugin_descriptor_t* plugindesc, con
   plugin->process = plugin_process;
   plugin->get_extension = plugin_get_extension;
   plugin->on_main_thread = default_plugin_on_main_thread;
-  p001* data = calloc(1, sizeof(*data));
+  p002* data = calloc(1, sizeof(*data));
   plugin->plugin_data = data;
   data->host = host;
 

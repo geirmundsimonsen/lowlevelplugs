@@ -84,9 +84,11 @@ pub fn rewrite(mut c_file: String) -> String {
 
   // Prettifying
 
+// no. this removes code before this that might generated, like power2_f
+/* 
   let idx = c_file.find("typedef struct").unwrap();
   c_file = c_file[idx..].to_string();
-
+*/
   c_file = c_file.replace("\t", "  ");
   c_file = c_file.replace("\n\n\n", "\n\n");
   c_file = c_file.replace("\n\n\n", "\n\n");
